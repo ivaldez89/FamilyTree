@@ -91,6 +91,27 @@
             stroke-width: 2px;
         }
         
+        .node-year-label {
+            text-anchor: middle;
+            font-size: 12px;
+            font-weight: bold;
+            fill: #333;
+            background-color: rgba(255, 255, 255, 0.7);
+        }
+        
+        .delete-button {
+            cursor: pointer;
+            fill: #e74c3c;
+            font-weight: bold;
+            font-size: 16px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        
+        .family-node:hover .delete-button {
+            opacity: 1;
+        }
+        
         .tree-link {
             fill: none;
             stroke: #656D78;
@@ -264,7 +285,12 @@
     
     <!-- Add Member Form -->
     <div id="form-page" class="page form-page">
-        <h2 class="mb-4">Add Family Member</h2>
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2 class="mb-0">Add Family Member</h2>
+            <button id="back-to-tree-from-form" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Back to Tree
+            </button>
+        </div>
         
         <div id="success-alert" class="alert alert-success d-none" role="alert">
             Family member added successfully!
@@ -482,6 +508,41 @@
             <i class="fas fa-plus"></i>
         </div>
         
+        <div id="relationship-finder" class="card position-fixed bottom-0 start-0 end-0 mb-0" style="z-index: 1000; display: none;">
+            <div class="card-header d-flex justify-content-between align-items-center bg-light">
+                <h5 class="mb-0">Find Relationship</h5>
+                <button type="button" class="btn-close" id="close-relationship-finder"></button>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-5">
+                        <label for="person1Select" class="form-label">First Person</label>
+                        <select class="form-select" id="person1Select">
+                            <option value="" selected>Select person</option>
+                        </select>
+                    </div>
+                    <div class="col-md-5">
+                        <label for="person2Select" class="form-label">Second Person</label>
+                        <select class="form-select" id="person2Select">
+                            <option value="" selected>Select person</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button id="find-relationship-btn" class="btn btn-primary w-100">Find Relationship</button>
+                    </div>
+                </div>
+                <div id="relationship-result" class="mt-3">
+                    <!-- Relationship results will be displayed here -->
+                </div>
+            </div>
+        </div>
+        
+        <div class="position-fixed bottom-0 end-0 mb-3 me-3" style="z-index: 1000;">
+            <button id="toggle-relationship-finder" class="btn btn-primary me-2">
+                <i class="fas fa-people-arrows me-2"></i>Find Relationship
+            </button>
+        </div>
+        
         <div id="save-notice" class="save-notice">Data saved to localStorage</div>
     </div>
     
@@ -645,6 +706,14 @@
                 });
                 
                 // Form page
+                document.getElementById('back-to-tree-from-form').addEventListener('click', () => {
+                    if (this.members.length > 0) {
+                        this.showPage('tree');
+                    } else {
+                        this.showPage('welcome');
+                    }
+                });
+                
                 document.getElementById('cancel-button').addEventListener('click', () => {
                     if (this.members.length > 0) {
                         this.showPage('tree');
@@ -659,6 +728,25 @@
                 
                 document.getElementById('save-button').addEventListener('click', () => {
                     this.saveMember();
+                });
+                
+                // Relationship finder
+                document.getElementById('toggle-relationship-finder').addEventListener('click', () => {
+                    const finderPanel = document.getElementById('relationship-finder');
+                    if (finderPanel.style.display === 'none') {
+                        finderPanel.style.display = 'block';
+                        this.populateRelationshipFinderSelects();
+                    } else {
+                        finderPanel.style.display = 'none';
+                    }
+                });
+                
+                document.getElementById('close-relationship-finder').addEventListener('click', () => {
+                    document.getElementById('relationship-finder').style.display = 'none';
+                });
+                
+                document.getElementById('find-relationship-btn').addEventListener('click', () => {
+                    this.findRelationship();
                 });
                 
                 // Photo preview
@@ -1362,9 +1450,306 @@
                 }
             },
             
+            // Populate relationship finder selects
+            populateRelationshipFinderSelects: function() {
+                const person1Select = document.getElementById('person1Select');
+                const person2Select = document.getElementById('person2Select');
+                
+                // Clear existing options
+                while (person1Select.options.length > 1) person1Select.remove(1);
+                while (person2Select.options.length > 1) person2Select.remove(1);
+                
+                // Add all members as options
+                this.members.forEach(member => {
+                    const option1 = document.createElement('option');
+                    option1.value = member.id;
+                    option1.textContent = this.getDisplayName(member);
+                    person1Select.appendChild(option1);
+                    
+                    const option2 = document.createElement('option');
+                    option2.value = member.id;
+                    option2.textContent = this.getDisplayName(member);
+                    person2Select.appendChild(option2);
+                });
+            },
+            
+            // Find relationship between two people
+            findRelationship: function() {
+                const person1Id = document.getElementById('person1Select').value;
+                const person2Id = document.getElementById('person2Select').value;
+                const resultContainer = document.getElementById('relationship-result');
+                
+                if (!person1Id || !person2Id) {
+                    resultContainer.innerHTML = '<div class="alert alert-warning">Please select two people</div>';
+                    return;
+                }
+                
+                if (person1Id === person2Id) {
+                    resultContainer.innerHTML = '<div class="alert alert-info">Same person selected</div>';
+                    return;
+                }
+                
+                const person1 = this.members.find(m => m.id === person1Id);
+                const person2 = this.members.find(m => m.id === person2Id);
+                
+                if (!person1 || !person2) {
+                    resultContainer.innerHTML = '<div class="alert alert-danger">Error finding selected people</div>';
+                    return;
+                }
+                
+                // Check direct relationships first
+                const directRelationship = this.getDirectRelationship(person1Id, person2Id);
+                if (directRelationship) {
+                    resultContainer.innerHTML = `
+                        <div class="alert alert-success">
+                            <h5 class="alert-heading">Direct Relationship Found!</h5>
+                            <p>${this.getDisplayName(person1)} is ${directRelationship} of ${this.getDisplayName(person2)}</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                // Check if they are siblings
+                if (this.areSiblings(person1Id, person2Id)) {
+                    const siblingType = this.getSiblingType(person1Id, person2Id);
+                    resultContainer.innerHTML = `
+                        <div class="alert alert-success">
+                            <h5 class="alert-heading">Sibling Relationship Found!</h5>
+                            <p>${this.getDisplayName(person1)} is a ${siblingType || ''} sibling of ${this.getDisplayName(person2)}</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                // Check if one is a grandparent of the other
+                if (this.isGrandparent(person1Id, person2Id)) {
+                    resultContainer.innerHTML = `
+                        <div class="alert alert-success">
+                            <h5 class="alert-heading">Grandparent Relationship Found!</h5>
+                            <p>${this.getDisplayName(person1)} is a grandparent of ${this.getDisplayName(person2)}</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                if (this.isGrandparent(person2Id, person1Id)) {
+                    resultContainer.innerHTML = `
+                        <div class="alert alert-success">
+                            <h5 class="alert-heading">Grandparent Relationship Found!</h5>
+                            <p>${this.getDisplayName(person2)} is a grandparent of ${this.getDisplayName(person1)}</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                // Check if they are cousins
+                const cousinResult = this.findCousinRelationship(person1Id, person2Id);
+                if (cousinResult) {
+                    resultContainer.innerHTML = `
+                        <div class="alert alert-success">
+                            <h5 class="alert-heading">Cousin Relationship Found!</h5>
+                            <p>${cousinResult}</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                // Check in-law relationships
+                const inLawRelationship = this.findInLawRelationship(person1Id, person2Id);
+                if (inLawRelationship) {
+                    resultContainer.innerHTML = `
+                        <div class="alert alert-success">
+                            <h5 class="alert-heading">In-Law Relationship Found!</h5>
+                            <p>${inLawRelationship}</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                // If no relationship found
+                resultContainer.innerHTML = `
+                    <div class="alert alert-info">
+                        <h5 class="alert-heading">No Clear Relationship Found</h5>
+                        <p>No direct family relationship was found between ${this.getDisplayName(person1)} and ${this.getDisplayName(person2)}</p>
+                    </div>
+                `;
+            },
+            
+            // Get direct relationship between two people
+            getDirectRelationship: function(person1Id, person2Id) {
+                // Check parent-child
+                const isParent = this.relationships.some(r => 
+                    r.from === person1Id && r.to === person2Id && r.type === 'parent'
+                );
+                
+                if (isParent) {
+                    return 'a parent';
+                }
+                
+                const isChild = this.relationships.some(r => 
+                    r.from === person2Id && r.to === person1Id && r.type === 'parent'
+                );
+                
+                if (isChild) {
+                    return 'a child';
+                }
+                
+                // Check spouse
+                const isSpouse = this.relationships.some(r => 
+                    ((r.from === person1Id && r.to === person2Id) || 
+                     (r.from === person2Id && r.to === person1Id)) && 
+                    r.type === 'spouse'
+                );
+                
+                if (isSpouse) {
+                    const relationship = this.relationships.find(r => 
+                        ((r.from === person1Id && r.to === person2Id) || 
+                         (r.from === person2Id && r.to === person1Id)) && 
+                        r.type === 'spouse'
+                    );
+                    
+                    if (relationship && relationship.relationshipType) {
+                        switch (relationship.relationshipType) {
+                            case 'married': return 'married to';
+                            case 'divorced': return 'divorced from';
+                            case 'partner': return 'a partner of';
+                            case 'separated': return 'separated from';
+                            default: return 'a spouse of';
+                        }
+                    }
+                    
+                    return 'a spouse of';
+                }
+                
+                return null;
+            },
+            
+            // Check if two people are siblings
+            areSiblings: function(person1Id, person2Id) {
+                // Direct sibling relationship
+                const directSibling = this.relationships.some(r => 
+                    ((r.from === person1Id && r.to === person2Id) || 
+                     (r.from === person2Id && r.to === person1Id)) && 
+                    r.type === 'sibling'
+                );
+                
+                if (directSibling) {
+                    return true;
+                }
+                
+                // Check if they share parents
+                const parents1 = this.getParents(person1Id).map(p => p.id);
+                const parents2 = this.getParents(person2Id).map(p => p.id);
+                
+                // If they share at least one parent, they are siblings
+                return parents1.some(p => parents2.includes(p));
+            },
+            
+            // Get sibling type
+            getSiblingType: function(person1Id, person2Id) {
+                // Check direct sibling relationship first
+                const siblingRel = this.relationships.find(r => 
+                    ((r.from === person1Id && r.to === person2Id) || 
+                     (r.from === person2Id && r.to === person1Id)) && 
+                    r.type === 'sibling'
+                );
+                
+                if (siblingRel && siblingRel.relationshipType) {
+                    return siblingRel.relationshipType;
+                }
+                
+                // Otherwise, check parents
+                const parents1 = this.getParents(person1Id);
+                const parents2 = this.getParents(person2Id);
+                
+                const parentIds1 = parents1.map(p => p.id);
+                const parentIds2 = parents2.map(p => p.id);
+                
+                const commonParents = parentIds1.filter(id => parentIds2.includes(id));
+                
+                if (commonParents.length === 0) {
+                    return null;
+                }
+                
+                if (parents1.length === parents2.length && commonParents.length === parents1.length) {
+                    return 'full';
+                } else {
+                    return 'half';
+                }
+            },
+            
+            // Check if person1 is a grandparent of person2
+            isGrandparent: function(person1Id, person2Id) {
+                // Get children of person1
+                const children = this.getChildren(person1Id).map(c => c.id);
+                
+                // Get parents of person2
+                const parents = this.getParents(person2Id).map(p => p.id);
+                
+                // If any child of person1 is a parent of person2, then person1 is a grandparent
+                return children.some(childId => parents.includes(childId));
+            },
+            
+            // Find cousin relationship
+            findCousinRelationship: function(person1Id, person2Id) {
+                // Get parents
+                const parents1 = this.getParents(person1Id);
+                const parents2 = this.getParents(person2Id);
+                
+                // Check if parents are siblings (making these two first cousins)
+                for (const parent1 of parents1) {
+                    for (const parent2 of parents2) {
+                        if (this.areSiblings(parent1.id, parent2.id)) {
+                            return `${this.getDisplayName(person1)} and ${this.getDisplayName(person2)} are first cousins`;
+                        }
+                    }
+                }
+                
+                // TODO: Could extend this to check for second cousins, etc.
+                return null;
+            },
+            
+            // Find in-law relationships
+            findInLawRelationship: function(person1Id, person2Id) {
+                // Get spouses
+                const spouses1 = this.getSpouses(person1Id);
+                const spouses2 = this.getSpouses(person2Id);
+                
+                // Check if one is a parent of the other's spouse
+                for (const spouse of spouses1) {
+                    if (this.getParents(spouse.id).map(p => p.id).includes(person2Id)) {
+                        return `${this.getDisplayName(person2)} is a parent-in-law of ${this.getDisplayName(person1)}`;
+                    }
+                }
+                
+                for (const spouse of spouses2) {
+                    if (this.getParents(spouse.id).map(p => p.id).includes(person1Id)) {
+                        return `${this.getDisplayName(person1)} is a parent-in-law of ${this.getDisplayName(person2)}`;
+                    }
+                }
+                
+                // Check if one is a sibling of the other's spouse
+                for (const spouse of spouses1) {
+                    if (this.areSiblings(spouse.id, person2Id)) {
+                        return `${this.getDisplayName(person2)} is a sibling-in-law of ${this.getDisplayName(person1)}`;
+                    }
+                }
+                
+                for (const spouse of spouses2) {
+                    if (this.areSiblings(spouse.id, person1Id)) {
+                        return `${this.getDisplayName(person1)} is a sibling-in-law of ${this.getDisplayName(person2)}`;
+                    }
+                }
+                
+                return null;
+            },
+            
             // Build family tree data structure
             buildFamilyTreeData: function() {
                 if (this.members.length === 0) return null;
+                
+                // Create a map to deduplicate members
+                const processedMembers = new Map();
                 
                 // Find people without parents (root nodes)
                 const rootMemberIds = this.members
@@ -1404,7 +1789,7 @@
                         const familyUnit = {
                             id: `family_${rootId}`,
                             parents: [rootPerson],
-                            children: this.getChildrenFamilyUnits(rootId)
+                            children: this.getChildrenFamilyUnits(rootId, processedMembers)
                         };
                         
                         familyUnits.push(familyUnit);
@@ -1414,7 +1799,7 @@
                             const spouse = this.members.find(m => m.id === spouseId);
                             
                             // Find children from this marriage
-                            const childrenUnits = this.getCommonChildrenFamilyUnits(rootId, spouseId);
+                            const childrenUnits = this.getCommonChildrenFamilyUnits(rootId, spouseId, processedMembers);
                             
                             const familyUnit = {
                                 id: `family_${rootId}_${spouseId}`,
@@ -1796,82 +2181,192 @@
                         }
                     });
                 
-                // Draw shape based on gender
+                // Add background rectangle/ellipse for node with white background for better text contrast
+                let nodeShape;
                 if (person.gender === 'male') {
+                    // Background for photo/text
                     nodeGroup.append('rect')
+                        .attr('width', width)
+                        .attr('height', height)
+                        .attr('rx', 5)
+                        .attr('fill', 'white')
+                        .attr('stroke', '#4A89DC')
+                        .attr('stroke-width', 1);
+                    
+                    // Actual colored shape
+                    nodeShape = nodeGroup.append('rect')
                         .attr('class', 'node-male')
                         .attr('width', width)
                         .attr('height', height)
-                        .attr('rx', 5);
+                        .attr('rx', 5)
+                        .attr('fill-opacity', 0.8);
                 } else if (person.gender === 'female') {
+                    // Background for photo/text
                     nodeGroup.append('ellipse')
+                        .attr('cx', width / 2)
+                        .attr('cy', height / 2)
+                        .attr('rx', width / 2)
+                        .attr('ry', height / 2)
+                        .attr('fill', 'white')
+                        .attr('stroke', '#D770AD')
+                        .attr('stroke-width', 1);
+                    
+                    // Actual colored shape
+                    nodeShape = nodeGroup.append('ellipse')
                         .attr('class', 'node-female')
                         .attr('cx', width / 2)
                         .attr('cy', height / 2)
                         .attr('rx', width / 2)
-                        .attr('ry', height / 2);
+                        .attr('ry', height / 2)
+                        .attr('fill-opacity', 0.8);
                 } else {
+                    // Background for photo/text
                     nodeGroup.append('polygon')
+                        .attr('points', `${width/2},0 ${width},${height/2} ${width/2},${height} 0,${height/2}`)
+                        .attr('fill', 'white')
+                        .attr('stroke', '#656D78')
+                        .attr('stroke-width', 1);
+                    
+                    // Actual colored shape
+                    nodeShape = nodeGroup.append('polygon')
                         .attr('class', 'node-unknown')
-                        .attr('points', `${width/2},0 ${width},${height/2} ${width/2},${height} 0,${height/2}`);
+                        .attr('points', `${width/2},0 ${width},${height/2} ${width/2},${height} 0,${height/2}`)
+                        .attr('fill-opacity', 0.8);
                 }
                 
-                // Add photo if available
+                // Add photo directly into the node (not as a separate element)
                 if (person.photo) {
                     // Create a clip path for the photo
                     const clipId = `clip-${person.id}`;
-                    
                     const defs = group.append('defs');
+                    const clipPath = defs.append('clipPath').attr('id', clipId);
                     
-                    const clipPath = defs.append('clipPath')
-                        .attr('id', clipId);
-                    
+                    // Create appropriate clip shape based on gender
                     if (person.gender === 'male') {
                         clipPath.append('rect')
-                            .attr('x', 0)
-                            .attr('y', 0)
-                            .attr('width', 40)
-                            .attr('height', 40)
-                            .attr('rx', 20);
+                            .attr('x', width/2 - 25)
+                            .attr('y', -30)
+                            .attr('width', 50)
+                            .attr('height', 50)
+                            .attr('rx', 5);
                     } else if (person.gender === 'female') {
                         clipPath.append('circle')
-                            .attr('cx', 20)
-                            .attr('cy', 20)
-                            .attr('r', 20);
+                            .attr('cx', width/2)
+                            .attr('cy', -15)
+                            .attr('r', 25);
                     } else {
                         clipPath.append('circle')
-                            .attr('cx', 20)
-                            .attr('cy', 20)
-                            .attr('r', 20);
+                            .attr('cx', width/2)
+                            .attr('cy', -15)
+                            .attr('r', 25);
                     }
                     
+                    // Add background for the photo
+                    nodeGroup.append('rect')
+                        .attr('x', width/2 - 28)
+                        .attr('y', -33)
+                        .attr('width', 56)
+                        .attr('height', 56)
+                        .attr('rx', 28)
+                        .attr('fill', 'white')
+                        .attr('stroke', '#ccc')
+                        .attr('stroke-width', 2);
+                    
+                    // Add the actual photo
                     nodeGroup.append('image')
-                        .attr('class', 'person-photo')
-                        .attr('xlink:href', person.photo)
-                        .attr('width', 40)
-                        .attr('height', 40)
-                        .attr('clip-path', `url(#${clipId})`);
+                        .attr('x', width/2 - 25)
+                        .attr('y', -30)
+                        .attr('width', 50)
+                        .attr('height', 50)
+                        .attr('clip-path', `url(#${clipId})`)
+                        .attr('xlink:href', person.photo);
                 }
                 
                 // Add name
                 nodeGroup.append('text')
                     .attr('x', width / 2)
                     .attr('y', height / 2 + 5)
+                    .attr('text-anchor', 'middle')
+                    .attr('fill', 'black')
+                    .attr('font-weight', 'bold')
+                    .attr('font-size', '14px')
                     .text(this.getShortName(person));
                 
-                // Add birth year below
+                // Add birth/death year with better visibility
                 if (person.birthYear) {
                     let yearText = person.birthYear;
                     if (person.deathYear) {
                         yearText += `-${person.deathYear}`;
                     }
                     
+                    // Add white background for year text
+                    nodeGroup.append('rect')
+                        .attr('x', width / 2 - 30)
+                        .attr('y', height + 10)
+                        .attr('width', 60)
+                        .attr('height', 20)
+                        .attr('rx', 4)
+                        .attr('fill', 'white')
+                        .attr('fill-opacity', 0.8)
+                        .attr('stroke', '#ccc')
+                        .attr('stroke-width', 1);
+                    
                     nodeGroup.append('text')
-                        .attr('class', 'family-node-label')
+                        .attr('class', 'node-year-label')
                         .attr('x', width / 2)
-                        .attr('y', height + 20)
+                        .attr('y', height + 24)
                         .text(yearText);
                 }
+                
+                // Add delete button (X)
+                const deleteBtn = nodeGroup.append('g')
+                    .attr('class', 'delete-button')
+                    .attr('transform', `translate(${width - 5}, 0)`)
+                    .style('cursor', 'pointer')
+                    .on('click', (event) => {
+                        event.stopPropagation(); // Prevent opening profile when clicking delete
+                        
+                        const id = nodeGroup.attr('data-id');
+                        if (confirm('Are you sure you want to delete this person?')) {
+                            this.deleteMember(id);
+                        }
+                    });
+                
+                deleteBtn.append('circle')
+                    .attr('cx', 0)
+                    .attr('cy', 0)
+                    .attr('r', 10)
+                    .attr('fill', 'white')
+                    .attr('stroke', '#e74c3c')
+                    .attr('stroke-width', 1);
+                
+                deleteBtn.append('text')
+                    .attr('x', 0)
+                    .attr('y', 4)
+                    .attr('text-anchor', 'middle')
+                    .attr('fill', '#e74c3c')
+                    .attr('font-weight', 'bold')
+                    .text('×');
+            },
+            
+            // Delete a family member
+            deleteMember: function(memberId) {
+                // Find the member
+                const memberIndex = this.members.findIndex(m => m.id === memberId);
+                if (memberIndex === -1) return;
+                
+                // Remove the member
+                this.members.splice(memberIndex, 1);
+                
+                // Remove all relationships involving this member
+                this.relationships = this.relationships.filter(r => 
+                    r.from !== memberId && r.to !== memberId
+                );
+                
+                // Save data and re-render
+                this.saveData();
+                this.populateMemberSelectors();
+                this.renderTree();
             },
             
             // Utility functions
