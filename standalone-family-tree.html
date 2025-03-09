@@ -325,13 +325,70 @@
                                 <option value="other">Other</option>
                             </select>
                         </div>
-                        <div class="col-md-4">
-                            <label for="birthYear" class="form-label">Birth Year</label>
-                            <input type="number" class="form-control" id="birthYear" placeholder="YYYY">
+                        <div class="col-md-8">
+                            <label class="form-label">Date of Birth</label>
+                            <div class="row g-2">
+                                <div class="col-md-4">
+                                    <select class="form-select" id="birthMonth">
+                                        <option value="" selected>Month</option>
+                                        <option value="1">January</option>
+                                        <option value="2">February</option>
+                                        <option value="3">March</option>
+                                        <option value="4">April</option>
+                                        <option value="5">May</option>
+                                        <option value="6">June</option>
+                                        <option value="7">July</option>
+                                        <option value="8">August</option>
+                                        <option value="9">September</option>
+                                        <option value="10">October</option>
+                                        <option value="11">November</option>
+                                        <option value="12">December</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <select class="form-select" id="birthDay">
+                                        <option value="" selected>Day</option>
+                                        <!-- Will be populated by JavaScript -->
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <input type="number" class="form-control" id="birthYear" placeholder="Year">
+                                </div>
+                            </div>
                         </div>
-                        <div class="col-md-4">
-                            <label for="deathYear" class="form-label">Death Year (if applicable)</label>
-                            <input type="number" class="form-control" id="deathYear" placeholder="YYYY">
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <label class="form-label">Date of Death (if applicable)</label>
+                            <div class="row g-2">
+                                <div class="col-md-4">
+                                    <select class="form-select" id="deathMonth">
+                                        <option value="" selected>Month</option>
+                                        <option value="1">January</option>
+                                        <option value="2">February</option>
+                                        <option value="3">March</option>
+                                        <option value="4">April</option>
+                                        <option value="5">May</option>
+                                        <option value="6">June</option>
+                                        <option value="7">July</option>
+                                        <option value="8">August</option>
+                                        <option value="9">September</option>
+                                        <option value="10">October</option>
+                                        <option value="11">November</option>
+                                        <option value="12">December</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <select class="form-select" id="deathDay">
+                                        <option value="" selected>Day</option>
+                                        <!-- Will be populated by JavaScript -->
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <input type="number" class="form-control" id="deathYear" placeholder="Year">
+                                </div>
+                            </div>
                         </div>
                     </div>
                     
@@ -581,11 +638,59 @@
             init: function() {
                 this.loadData();
                 this.setupEventListeners();
+                this.setupDaySelectors();
                 this.populateMemberSelectors();
                 
                 if (this.members.length > 0) {
                     this.showPage('tree');
                     this.renderTree();
+                }
+            },
+            
+            // Setup day selectors based on month
+            setupDaySelectors: function() {
+                const populateDays = (monthSelector, daySelector) => {
+                    monthSelector.addEventListener('change', () => {
+                        const month = parseInt(monthSelector.value);
+                        const daySelect = document.getElementById(daySelector);
+                        
+                        // Clear days
+                        while (daySelect.options.length > 1) {
+                            daySelect.remove(1);
+                        }
+                        
+                        if (!month) return;
+                        
+                        // Define days in month
+                        let daysInMonth;
+                        if ([4, 6, 9, 11].includes(month)) {
+                            daysInMonth = 30;
+                        } else if (month === 2) {
+                            daysInMonth = 29; // We'll just use 29 for February to be safe
+                        } else {
+                            daysInMonth = 31;
+                        }
+                        
+                        // Add day options
+                        for (let i = 1; i <= daysInMonth; i++) {
+                            const option = document.createElement('option');
+                            option.value = i;
+                            option.textContent = i;
+                            daySelect.appendChild(option);
+                        }
+                    });
+                };
+                
+                // Setup for birth date
+                const birthMonth = document.getElementById('birthMonth');
+                if (birthMonth) {
+                    populateDays(birthMonth, 'birthDay');
+                }
+                
+                // Setup for death date
+                const deathMonth = document.getElementById('deathMonth');
+                if (deathMonth) {
+                    populateDays(deathMonth, 'deathDay');
                 }
             },
             
@@ -894,29 +999,36 @@
                 const middleName = document.getElementById('middleName').value.trim();
                 const lastName = document.getElementById('lastName').value.trim();
                 const gender = document.getElementById('gender').value;
+                
+                // Get DOB fields
+                const birthMonth = document.getElementById('birthMonth').value;
+                const birthDay = document.getElementById('birthDay').value;
                 const birthYear = document.getElementById('birthYear').value;
+                
+                // Get death date fields
+                const deathMonth = document.getElementById('deathMonth').value;
+                const deathDay = document.getElementById('deathDay').value;
                 const deathYear = document.getElementById('deathYear').value;
+                
                 const birthplace = document.getElementById('birthplace').value.trim();
                 const occupation = document.getElementById('occupation').value.trim();
                 const notes = document.getElementById('notes').value.trim();
-                
-                // Basic validation
-                if (!firstName && !lastName) {
-                    alert('Please enter at least a first or last name');
-                    return;
-                }
                 
                 // Get photo if uploaded
                 const photoPreview = document.getElementById('photoPreview');
                 const photo = photoPreview.classList.contains('d-none') ? '' : photoPreview.src;
                 
-                // Create member object
+                // Create member object - all fields are optional
                 const member = {
                     firstName,
                     middleName,
                     lastName,
                     gender,
+                    birthMonth,
+                    birthDay,
                     birthYear,
+                    deathMonth,
+                    deathDay,
                     deathYear,
                     birthplace,
                     occupation,
@@ -1025,6 +1137,21 @@
                 this.showPage('tree');
             },
             
+            // Format date string for display
+            formatDateString: function(month, day, year) {
+                let parts = [];
+                
+                if (month) {
+                    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                    parts.push(monthNames[parseInt(month) - 1]);
+                }
+                
+                if (day) parts.push(day);
+                if (year) parts.push(year);
+                
+                return parts.join(' ');
+            },
+            
             // Update an existing member
             updateMember: function(member) {
                 const index = this.members.findIndex(m => m.id === member.id);
@@ -1122,8 +1249,34 @@
                 document.getElementById('middleName').value = member.middleName || '';
                 document.getElementById('lastName').value = member.lastName || '';
                 document.getElementById('gender').value = member.gender || '';
+                
+                // Set date fields
+                document.getElementById('birthMonth').value = member.birthMonth || '';
+                if (member.birthMonth) {
+                    // Trigger change to populate days
+                    const event = new Event('change');
+                    document.getElementById('birthMonth').dispatchEvent(event);
+                    
+                    // Then set the day
+                    setTimeout(() => {
+                        document.getElementById('birthDay').value = member.birthDay || '';
+                    }, 100);
+                }
                 document.getElementById('birthYear').value = member.birthYear || '';
+                
+                document.getElementById('deathMonth').value = member.deathMonth || '';
+                if (member.deathMonth) {
+                    // Trigger change to populate days
+                    const event = new Event('change');
+                    document.getElementById('deathMonth').dispatchEvent(event);
+                    
+                    // Then set the day
+                    setTimeout(() => {
+                        document.getElementById('deathDay').value = member.deathDay || '';
+                    }, 100);
+                }
                 document.getElementById('deathYear').value = member.deathYear || '';
+                
                 document.getElementById('birthplace').value = member.birthplace || '';
                 document.getElementById('occupation').value = member.occupation || '';
                 document.getElementById('notes').value = member.notes || '';
@@ -1816,7 +1969,14 @@
             },
             
             // Get children of a person as family units
-            getChildrenFamilyUnits: function(parentId) {
+            getChildrenFamilyUnits: function(parentId, processedMembers = new Map()) {
+                // Prevent duplicate processing
+                if (processedMembers.has(parentId)) {
+                    return [];
+                }
+                
+                processedMembers.set(parentId, true);
+                
                 // Find all children of this parent
                 const childrenIds = this.relationships
                     .filter(r => r.from === parentId && r.type === 'parent')
@@ -1828,6 +1988,9 @@
                 
                 // Process each child
                 childrenIds.forEach(childId => {
+                    // Skip if this child has already been processed
+                    if (processedMembers.has(childId)) return;
+                    
                     const child = this.members.find(m => m.id === childId);
                     
                     // Find all spouses of this child
@@ -1840,7 +2003,7 @@
                         const childUnit = {
                             id: `family_${childId}`,
                             parents: [child],
-                            children: this.getChildrenFamilyUnits(childId)
+                            children: this.getChildrenFamilyUnits(childId, processedMembers)
                         };
                         
                         childrenUnits.push(childUnit);
@@ -1850,7 +2013,7 @@
                             const spouse = this.members.find(m => m.id === spouseId);
                             
                             // Find children from this marriage
-                            const grandchildrenUnits = this.getCommonChildrenFamilyUnits(childId, spouseId);
+                            const grandchildrenUnits = this.getCommonChildrenFamilyUnits(childId, spouseId, processedMembers);
                             
                             const childUnit = {
                                 id: `family_${childId}_${spouseId}`,
@@ -1867,7 +2030,7 @@
             },
             
             // Get common children of two parents as family units
-            getCommonChildrenFamilyUnits: function(parent1Id, parent2Id) {
+            getCommonChildrenFamilyUnits: function(parent1Id, parent2Id, processedMembers = new Map()) {
                 // Find children with both parents
                 const children1 = this.relationships
                     .filter(r => r.from === parent1Id && r.type === 'parent')
@@ -1889,6 +2052,11 @@
                 
                 // Process each child
                 allChildrenIds.forEach(childId => {
+                    // Skip if this child has already been processed
+                    if (processedMembers.has(childId)) return;
+                    
+                    processedMembers.set(childId, true);
+                    
                     const child = this.members.find(m => m.id === childId);
                     
                     // Find all spouses of this child
@@ -1901,7 +2069,7 @@
                         const childUnit = {
                             id: `family_${childId}`,
                             parents: [child],
-                            children: this.getChildrenFamilyUnits(childId)
+                            children: this.getChildrenFamilyUnits(childId, processedMembers)
                         };
                         
                         childrenUnits.push(childUnit);
@@ -1911,7 +2079,7 @@
                             const spouse = this.members.find(m => m.id === spouseId);
                             
                             // Find children from this marriage
-                            const grandchildrenUnits = this.getCommonChildrenFamilyUnits(childId, spouseId);
+                            const grandchildrenUnits = this.getCommonChildrenFamilyUnits(childId, spouseId, processedMembers);
                             
                             const childUnit = {
                                 id: `family_${childId}_${spouseId}`,
@@ -2292,18 +2460,21 @@
                     .attr('font-size', '14px')
                     .text(this.getShortName(person));
                 
-                // Add birth/death year with better visibility
-                if (person.birthYear) {
-                    let yearText = person.birthYear;
-                    if (person.deathYear) {
-                        yearText += `-${person.deathYear}`;
+                // Add birth/death dates with better visibility
+                if (person.birthMonth || person.birthDay || person.birthYear) {
+                    let dateText = this.formatDateString(person.birthMonth, person.birthDay, person.birthYear);
+                    if (person.deathMonth || person.deathDay || person.deathYear) {
+                        dateText += " - " + this.formatDateString(person.deathMonth, person.deathDay, person.deathYear);
                     }
                     
-                    // Add white background for year text
+                    // Adjust background width based on text length
+                    const textWidth = dateText.length * 7 + 10; // rough estimate of text width
+                    
+                    // Add white background for date text
                     nodeGroup.append('rect')
-                        .attr('x', width / 2 - 30)
+                        .attr('x', width / 2 - textWidth / 2)
                         .attr('y', height + 10)
-                        .attr('width', 60)
+                        .attr('width', textWidth)
                         .attr('height', 20)
                         .attr('rx', 4)
                         .attr('fill', 'white')
@@ -2315,7 +2486,8 @@
                         .attr('class', 'node-year-label')
                         .attr('x', width / 2)
                         .attr('y', height + 24)
-                        .text(yearText);
+                        .attr('fill', 'black')
+                        .text(dateText);
                 }
                 
                 // Add delete button (X)
@@ -2411,6 +2583,15 @@
                     case 'import-button':
                         button.onclick = () => document.getElementById('import-file').click();
                         break;
+                    case 'back-to-tree-from-form':
+                        button.onclick = () => {
+                            if (familyTreeApp.members.length > 0) {
+                                familyTreeApp.showPage('tree');
+                            } else {
+                                familyTreeApp.showPage('welcome');
+                            }
+                        };
+                        break;
                     case 'cancel-button':
                         button.onclick = () => {
                             if (familyTreeApp.members.length > 0) {
@@ -2455,6 +2636,25 @@
                         break;
                     case 'center-tree-button':
                         button.onclick = () => familyTreeApp.centerTree();
+                        break;
+                    case 'toggle-relationship-finder':
+                        button.onclick = () => {
+                            const finderPanel = document.getElementById('relationship-finder');
+                            if (finderPanel.style.display === 'none') {
+                                finderPanel.style.display = 'block';
+                                familyTreeApp.populateRelationshipFinderSelects();
+                            } else {
+                                finderPanel.style.display = 'none';
+                            }
+                        };
+                        break;
+                    case 'close-relationship-finder':
+                        button.onclick = () => {
+                            document.getElementById('relationship-finder').style.display = 'none';
+                        };
+                        break;
+                    case 'find-relationship-btn':
+                        button.onclick = () => familyTreeApp.findRelationship();
                         break;
                 }
             });
