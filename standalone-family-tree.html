@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Traditional Family Tree</title>
+    <title>Enhanced Family Tree</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -57,6 +57,9 @@
             padding: 10px;
             border-radius: 5px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
         }
         
         .preview-image {
@@ -167,6 +170,68 @@
         .save-notice.show {
             opacity: 1;
         }
+        
+        .person-photo {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid white;
+            position: absolute;
+            top: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #ffffff;
+        }
+        
+        .add-member-floating {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background-color: #5D9CEC;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            z-index: 100;
+            font-size: 24px;
+            cursor: pointer;
+        }
+        
+        .relationship-section {
+            margin-bottom: 20px;
+            border: 1px solid #eee;
+            border-radius: 5px;
+            padding: 15px;
+            background-color: #f9f9f9;
+        }
+        
+        .relationship-section-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .tree-header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background-color: #f8f9fa;
+            padding: 10px 20px;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 90;
+        }
+        
+        .tree-container.with-header {
+            padding-top: 60px;
+        }
     </style>
 </head>
 <body>
@@ -225,7 +290,7 @@
                     </div>
                     
                     <div class="row mb-3">
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <label for="gender" class="form-label">Gender</label>
                             <select class="form-select" id="gender">
                                 <option value="" selected>Select gender</option>
@@ -234,9 +299,13 @@
                                 <option value="other">Other</option>
                             </select>
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <label for="birthYear" class="form-label">Birth Year</label>
                             <input type="number" class="form-control" id="birthYear" placeholder="YYYY">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="deathYear" class="form-label">Death Year (if applicable)</label>
+                            <input type="number" class="form-control" id="deathYear" placeholder="YYYY">
                         </div>
                     </div>
                     
@@ -247,37 +316,120 @@
                             <img id="photoPreview" class="preview-image d-none">
                         </div>
                     </div>
+                    
+                    <div class="mb-3">
+                        <label for="birthplace" class="form-label">Birthplace</label>
+                        <input type="text" class="form-control" id="birthplace">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="occupation" class="form-label">Occupation</label>
+                        <input type="text" class="form-control" id="occupation">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="notes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="notes" rows="3"></textarea>
+                    </div>
                 </div>
             </div>
             
             <div class="card mb-4">
                 <div class="card-header">Family Relationships</div>
                 <div class="card-body">
-                    <div class="mb-3">
-                        <label for="parentSelect" class="form-label">Add Parent</label>
-                        <div class="input-group">
-                            <select class="form-select" id="parentSelect">
-                                <option value="" selected>Select parent</option>
-                                <!-- Will be populated by JavaScript -->
-                            </select>
-                            <button class="btn btn-outline-primary" type="button" id="addParentBtn">Add</button>
-                        </div>
-                        <div id="parentsList" class="mt-2">
-                            <!-- Parents will be listed here -->
+                    <!-- Parents Section -->
+                    <div class="relationship-section">
+                        <div class="relationship-section-title">Parents</div>
+                        <div class="mb-3">
+                            <label for="parentSelect" class="form-label">Add Parent</label>
+                            <div class="input-group">
+                                <select class="form-select" id="parentSelect">
+                                    <option value="" selected>Select parent</option>
+                                    <!-- Will be populated by JavaScript -->
+                                </select>
+                                <select class="form-select" id="parentRelationship">
+                                    <option value="biological">Biological</option>
+                                    <option value="adoptive">Adoptive</option>
+                                    <option value="step">Step</option>
+                                    <option value="foster">Foster</option>
+                                </select>
+                                <button class="btn btn-outline-primary" type="button" id="addParentBtn">Add</button>
+                            </div>
+                            <div id="parentsList" class="mt-2">
+                                <!-- Parents will be listed here -->
+                            </div>
                         </div>
                     </div>
                     
-                    <div class="mb-3">
-                        <label for="spouseSelect" class="form-label">Add Spouse</label>
-                        <div class="input-group">
-                            <select class="form-select" id="spouseSelect">
-                                <option value="" selected>Select spouse</option>
-                                <!-- Will be populated by JavaScript -->
-                            </select>
-                            <button class="btn btn-outline-primary" type="button" id="addSpouseBtn">Add</button>
+                    <!-- Spouses Section -->
+                    <div class="relationship-section">
+                        <div class="relationship-section-title">Partners/Spouses</div>
+                        <div class="mb-3">
+                            <label for="spouseSelect" class="form-label">Add Spouse/Partner</label>
+                            <div class="input-group">
+                                <select class="form-select" id="spouseSelect">
+                                    <option value="" selected>Select spouse/partner</option>
+                                    <!-- Will be populated by JavaScript -->
+                                </select>
+                                <select class="form-select" id="relationshipType">
+                                    <option value="married">Married</option>
+                                    <option value="divorced">Divorced</option>
+                                    <option value="partner">Partner</option>
+                                    <option value="separated">Separated</option>
+                                </select>
+                                <button class="btn btn-outline-primary" type="button" id="addSpouseBtn">Add</button>
+                            </div>
+                            <div id="spousesList" class="mt-2">
+                                <!-- Spouses will be listed here -->
+                            </div>
                         </div>
-                        <div id="spousesList" class="mt-2">
-                            <!-- Spouses will be listed here -->
+                    </div>
+                    
+                    <!-- Siblings Section -->
+                    <div class="relationship-section">
+                        <div class="relationship-section-title">Siblings</div>
+                        <div class="mb-3">
+                            <label for="siblingSelect" class="form-label">Add Sibling</label>
+                            <div class="input-group">
+                                <select class="form-select" id="siblingSelect">
+                                    <option value="" selected>Select sibling</option>
+                                    <!-- Will be populated by JavaScript -->
+                                </select>
+                                <select class="form-select" id="siblingRelationship">
+                                    <option value="full">Full Sibling</option>
+                                    <option value="half">Half Sibling</option>
+                                    <option value="step">Step Sibling</option>
+                                    <option value="adoptive">Adoptive Sibling</option>
+                                </select>
+                                <button class="btn btn-outline-primary" type="button" id="addSiblingBtn">Add</button>
+                            </div>
+                            <div id="siblingsList" class="mt-2">
+                                <!-- Siblings will be listed here -->
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Children Section -->
+                    <div class="relationship-section">
+                        <div class="relationship-section-title">Children</div>
+                        <div class="mb-3">
+                            <label for="childSelect" class="form-label">Add Child</label>
+                            <div class="input-group">
+                                <select class="form-select" id="childSelect">
+                                    <option value="" selected>Select child</option>
+                                    <!-- Will be populated by JavaScript -->
+                                </select>
+                                <select class="form-select" id="childRelationship">
+                                    <option value="biological">Biological</option>
+                                    <option value="adoptive">Adoptive</option>
+                                    <option value="step">Step</option>
+                                    <option value="foster">Foster</option>
+                                </select>
+                                <button class="btn btn-outline-primary" type="button" id="addChildBtn">Add</button>
+                            </div>
+                            <div id="childrenList" class="mt-2">
+                                <!-- Children will be listed here -->
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -295,17 +447,39 @@
     
     <!-- Tree View -->
     <div id="tree-page" class="page">
+        <div class="tree-header">
+            <h3>Family Tree</h3>
+            <div class="d-flex gap-2">
+                <button id="add-member-button" class="btn btn-primary">
+                    <i class="fas fa-plus me-2"></i>Add Member
+                </button>
+                <button id="export-button" class="btn btn-outline-primary">
+                    <i class="fas fa-download me-2"></i>Export
+                </button>
+                <button id="organize-tree-button" class="btn btn-outline-secondary">
+                    <i class="fas fa-sitemap me-2"></i>Organize Tree
+                </button>
+            </div>
+        </div>
+        
         <div class="tree-toolbar">
-            <button id="add-member-button" class="btn btn-primary mb-2 me-2">
-                <i class="fas fa-plus me-2"></i>Add Member
+            <button id="zoom-in-button" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-search-plus"></i>
             </button>
-            <button id="export-button" class="btn btn-outline-primary mb-2">
-                <i class="fas fa-download me-2"></i>Export
+            <button id="zoom-out-button" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-search-minus"></i>
+            </button>
+            <button id="center-tree-button" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-compress-arrows-alt"></i>
             </button>
         </div>
         
-        <div id="tree-container" class="tree-container">
+        <div id="tree-container" class="tree-container with-header">
             <!-- Tree will be rendered here -->
+        </div>
+        
+        <div class="add-member-floating" id="add-member-floating">
+            <i class="fas fa-plus"></i>
         </div>
         
         <div id="save-notice" class="save-notice">Data saved to localStorage</div>
@@ -332,6 +506,7 @@
             members: [],
             relationships: [],
             currentMember: null,
+            zoomLevel: 1,
             
             // Pages
             pages: {
@@ -502,10 +677,12 @@
                 // Relationship buttons
                 document.getElementById('addParentBtn').addEventListener('click', () => {
                     const parentSelect = document.getElementById('parentSelect');
+                    const relationshipType = document.getElementById('parentRelationship').value;
+                    
                     if (parentSelect.value) {
                         const parent = this.members.find(m => m.id === parentSelect.value);
                         if (parent) {
-                            this.addRelationshipToForm('parent', parent);
+                            this.addRelationshipToForm('parent', parent, relationshipType);
                             parentSelect.value = '';
                         }
                     }
@@ -513,11 +690,39 @@
                 
                 document.getElementById('addSpouseBtn').addEventListener('click', () => {
                     const spouseSelect = document.getElementById('spouseSelect');
+                    const relationshipType = document.getElementById('relationshipType').value;
+                    
                     if (spouseSelect.value) {
                         const spouse = this.members.find(m => m.id === spouseSelect.value);
                         if (spouse) {
-                            this.addRelationshipToForm('spouse', spouse);
+                            this.addRelationshipToForm('spouse', spouse, relationshipType);
                             spouseSelect.value = '';
+                        }
+                    }
+                });
+                
+                document.getElementById('addSiblingBtn').addEventListener('click', () => {
+                    const siblingSelect = document.getElementById('siblingSelect');
+                    const relationshipType = document.getElementById('siblingRelationship').value;
+                    
+                    if (siblingSelect.value) {
+                        const sibling = this.members.find(m => m.id === siblingSelect.value);
+                        if (sibling) {
+                            this.addRelationshipToForm('sibling', sibling, relationshipType);
+                            siblingSelect.value = '';
+                        }
+                    }
+                });
+                
+                document.getElementById('addChildBtn').addEventListener('click', () => {
+                    const childSelect = document.getElementById('childSelect');
+                    const relationshipType = document.getElementById('childRelationship').value;
+                    
+                    if (childSelect.value) {
+                        const child = this.members.find(m => m.id === childSelect.value);
+                        if (child) {
+                            this.addRelationshipToForm('child', child, relationshipType);
+                            childSelect.value = '';
                         }
                     }
                 });
@@ -528,8 +733,29 @@
                     this.showPage('form');
                 });
                 
+                document.getElementById('add-member-floating').addEventListener('click', () => {
+                    this.resetForm();
+                    this.showPage('form');
+                });
+                
                 document.getElementById('export-button').addEventListener('click', () => {
                     this.exportData();
+                });
+                
+                document.getElementById('organize-tree-button').addEventListener('click', () => {
+                    this.renderTree(true);
+                });
+                
+                document.getElementById('zoom-in-button').addEventListener('click', () => {
+                    this.zoomTree(0.2);
+                });
+                
+                document.getElementById('zoom-out-button').addEventListener('click', () => {
+                    this.zoomTree(-0.2);
+                });
+                
+                document.getElementById('center-tree-button').addEventListener('click', () => {
+                    this.centerTree();
                 });
                 
                 // Profile page
@@ -567,6 +793,8 @@
                 document.getElementById('photoPreview').classList.add('d-none');
                 document.getElementById('parentsList').innerHTML = '';
                 document.getElementById('spousesList').innerHTML = '';
+                document.getElementById('siblingsList').innerHTML = '';
+                document.getElementById('childrenList').innerHTML = '';
                 
                 document.getElementById('save-button').textContent = 'Save Family Member';
                 document.getElementById('save-button').dataset.editing = '';
@@ -579,6 +807,10 @@
                 const lastName = document.getElementById('lastName').value.trim();
                 const gender = document.getElementById('gender').value;
                 const birthYear = document.getElementById('birthYear').value;
+                const deathYear = document.getElementById('deathYear').value;
+                const birthplace = document.getElementById('birthplace').value.trim();
+                const occupation = document.getElementById('occupation').value.trim();
+                const notes = document.getElementById('notes').value.trim();
                 
                 // Basic validation
                 if (!firstName && !lastName) {
@@ -597,15 +829,37 @@
                     lastName,
                     gender,
                     birthYear,
+                    deathYear,
+                    birthplace,
+                    occupation,
+                    notes,
                     photo
                 };
                 
                 // Get relationship data
-                const parentIds = Array.from(document.querySelectorAll('#parentsList [data-id]'))
-                    .map(el => el.dataset.id);
+                const parentItems = Array.from(document.querySelectorAll('#parentsList [data-id]'));
+                const parentRelationships = parentItems.map(el => ({
+                    id: el.dataset.id,
+                    type: el.dataset.relationshipType || 'biological'
+                }));
                 
-                const spouseIds = Array.from(document.querySelectorAll('#spousesList [data-id]'))
-                    .map(el => el.dataset.id);
+                const spouseItems = Array.from(document.querySelectorAll('#spousesList [data-id]'));
+                const spouseRelationships = spouseItems.map(el => ({
+                    id: el.dataset.id,
+                    type: el.dataset.relationshipType || 'married'
+                }));
+                
+                const siblingItems = Array.from(document.querySelectorAll('#siblingsList [data-id]'));
+                const siblingRelationships = siblingItems.map(el => ({
+                    id: el.dataset.id,
+                    type: el.dataset.relationshipType || 'full'
+                }));
+                
+                const childItems = Array.from(document.querySelectorAll('#childrenList [data-id]'));
+                const childRelationships = childItems.map(el => ({
+                    id: el.dataset.id,
+                    type: el.dataset.relationshipType || 'biological'
+                }));
                 
                 // Check if editing or adding new
                 const editingId = document.getElementById('save-button').dataset.editing;
@@ -616,8 +870,8 @@
                     
                     // Remove old relationships
                     this.relationships = this.relationships.filter(r => 
-                        !(r.from === editingId && r.type === 'parent') && 
-                        !(r.to === editingId && r.type === 'parent') &&
+                        !(r.from === editingId && (r.type === 'parent' || r.type === 'child' || r.type === 'sibling')) && 
+                        !(r.to === editingId && (r.type === 'parent' || r.type === 'child' || r.type === 'sibling')) &&
                         !((r.from === editingId || r.to === editingId) && r.type === 'spouse')
                     );
                 } else {
@@ -625,20 +879,43 @@
                     this.members.push(member);
                 }
                 
-                // Add relationships
-                parentIds.forEach(parentId => {
+                // Add parent relationships
+                parentRelationships.forEach(rel => {
                     this.relationships.push({
-                        from: parentId,
+                        from: rel.id,
                         to: member.id,
-                        type: 'parent'
+                        type: 'parent',
+                        relationshipType: rel.type
                     });
                 });
                 
-                spouseIds.forEach(spouseId => {
+                // Add spouse relationships
+                spouseRelationships.forEach(rel => {
                     this.relationships.push({
                         from: member.id,
-                        to: spouseId,
-                        type: 'spouse'
+                        to: rel.id,
+                        type: 'spouse',
+                        relationshipType: rel.type
+                    });
+                });
+                
+                // Add sibling relationships
+                siblingRelationships.forEach(rel => {
+                    this.relationships.push({
+                        from: member.id,
+                        to: rel.id,
+                        type: 'sibling',
+                        relationshipType: rel.type
+                    });
+                });
+                
+                // Add child relationships
+                childRelationships.forEach(rel => {
+                    this.relationships.push({
+                        from: member.id,
+                        to: rel.id,
+                        type: 'parent', // Parent relationship type to indicate parent->child
+                        relationshipType: rel.type
                     });
                 });
                 
@@ -670,8 +947,25 @@
             },
             
             // Add relationship to the form
-            addRelationshipToForm: function(type, person) {
-                const listElement = type === 'parent' ? document.getElementById('parentsList') : document.getElementById('spousesList');
+            addRelationshipToForm: function(type, person, relationshipType) {
+                let listElement;
+                
+                switch(type) {
+                    case 'parent':
+                        listElement = document.getElementById('parentsList');
+                        break;
+                    case 'spouse':
+                        listElement = document.getElementById('spousesList');
+                        break;
+                    case 'sibling':
+                        listElement = document.getElementById('siblingsList');
+                        break;
+                    case 'child':
+                        listElement = document.getElementById('childrenList');
+                        break;
+                    default:
+                        return;
+                }
                 
                 // Check if already added
                 if (listElement.querySelector(`[data-id="${person.id}"]`)) {
@@ -681,9 +975,19 @@
                 const item = document.createElement('div');
                 item.className = 'alert alert-secondary d-flex justify-content-between align-items-center';
                 item.dataset.id = person.id;
+                item.dataset.relationshipType = relationshipType;
+                
+                // Format relationship type for display
+                let relationshipDisplay = relationshipType;
+                if (relationshipType) {
+                    relationshipDisplay = relationshipType.charAt(0).toUpperCase() + relationshipType.slice(1);
+                }
                 
                 item.innerHTML = `
-                    <span>${this.getDisplayName(person)}</span>
+                    <div>
+                        <strong>${this.getDisplayName(person)}</strong>
+                        ${relationshipType ? `<span class="badge bg-info ms-2">${relationshipDisplay}</span>` : ''}
+                    </div>
                     <button type="button" class="btn-close"></button>
                 `;
                 
@@ -697,14 +1001,18 @@
             
             // Populate member selectors for relationships
             populateMemberSelectors: function() {
-                const parentSelect = document.getElementById('parentSelect');
-                const spouseSelect = document.getElementById('spouseSelect');
-                
-                if (!parentSelect || !spouseSelect) return;
+                const selectors = {
+                    parent: document.getElementById('parentSelect'),
+                    spouse: document.getElementById('spouseSelect'),
+                    sibling: document.getElementById('siblingSelect'),
+                    child: document.getElementById('childSelect')
+                };
                 
                 // Clear existing options except first
-                while (parentSelect.options.length > 1) parentSelect.remove(1);
-                while (spouseSelect.options.length > 1) spouseSelect.remove(1);
+                Object.values(selectors).forEach(selector => {
+                    if (!selector) return;
+                    while (selector.options.length > 1) selector.remove(1);
+                });
                 
                 // Add members as options
                 this.members.forEach(member => {
@@ -712,8 +1020,11 @@
                     option.value = member.id;
                     option.textContent = this.getDisplayName(member);
                     
-                    parentSelect.appendChild(option.cloneNode(true));
-                    spouseSelect.appendChild(option);
+                    Object.values(selectors).forEach(selector => {
+                        if (selector) {
+                            selector.appendChild(option.cloneNode(true));
+                        }
+                    });
                 });
             },
             
@@ -724,6 +1035,10 @@
                 document.getElementById('lastName').value = member.lastName || '';
                 document.getElementById('gender').value = member.gender || '';
                 document.getElementById('birthYear').value = member.birthYear || '';
+                document.getElementById('deathYear').value = member.deathYear || '';
+                document.getElementById('birthplace').value = member.birthplace || '';
+                document.getElementById('occupation').value = member.occupation || '';
+                document.getElementById('notes').value = member.notes || '';
                 
                 // Set photo if exists
                 const photoPreview = document.getElementById('photoPreview');
@@ -737,6 +1052,8 @@
                 // Clear existing relationships
                 document.getElementById('parentsList').innerHTML = '';
                 document.getElementById('spousesList').innerHTML = '';
+                document.getElementById('siblingsList').innerHTML = '';
+                document.getElementById('childrenList').innerHTML = '';
                 
                 // Add parents
                 this.relationships
@@ -744,7 +1061,7 @@
                     .forEach(r => {
                         const parent = this.members.find(m => m.id === r.from);
                         if (parent) {
-                            this.addRelationshipToForm('parent', parent);
+                            this.addRelationshipToForm('parent', parent, r.relationshipType);
                         }
                     });
                 
@@ -755,7 +1072,30 @@
                         const spouseId = r.from === member.id ? r.to : r.from;
                         const spouse = this.members.find(m => m.id === spouseId);
                         if (spouse) {
-                            this.addRelationshipToForm('spouse', spouse);
+                            this.addRelationshipToForm('spouse', spouse, r.relationshipType);
+                        }
+                    });
+                
+                // Add siblings
+                this.relationships
+                    .filter(r => ((r.from === member.id && r.to !== member.id) || 
+                                  (r.to === member.id && r.from !== member.id)) && 
+                                  r.type === 'sibling')
+                    .forEach(r => {
+                        const siblingId = r.from === member.id ? r.to : r.from;
+                        const sibling = this.members.find(m => m.id === siblingId);
+                        if (sibling) {
+                            this.addRelationshipToForm('sibling', sibling, r.relationshipType);
+                        }
+                    });
+                
+                // Add children
+                this.relationships
+                    .filter(r => r.from === member.id && r.type === 'parent')
+                    .forEach(r => {
+                        const child = this.members.find(m => m.id === r.to);
+                        if (child) {
+                            this.addRelationshipToForm('child', child, r.relationshipType);
                         }
                     });
                 
@@ -773,6 +1113,7 @@
                 // Get relationships
                 const parents = this.getParents(member.id);
                 const spouses = this.getSpouses(member.id);
+                const siblings = this.getSiblings(member.id);
                 const children = this.getChildren(member.id);
                 
                 let html = `
@@ -786,18 +1127,35 @@
                         <div class="profile-info">
                             <h1>${this.getDisplayName(member)}</h1>
                             ${member.gender ? `<p><strong>Gender:</strong> ${this.capitalizeFirst(member.gender)}</p>` : ''}
-                            ${member.birthYear ? `<p><strong>Birth Year:</strong> ${member.birthYear}</p>` : ''}
+                            ${member.birthYear ? `<p><strong>Birth Year:</strong> ${member.birthYear}${member.deathYear ? ` - Death Year: ${member.deathYear}` : ''}</p>` : ''}
+                            ${member.birthplace ? `<p><strong>Birthplace:</strong> ${member.birthplace}</p>` : ''}
+                            ${member.occupation ? `<p><strong>Occupation:</strong> ${member.occupation}</p>` : ''}
                         </div>
                     </div>
+                    
+                    ${member.notes ? `
+                    <div class="card mb-4">
+                        <div class="card-header">Notes</div>
+                        <div class="card-body">
+                            <p>${member.notes}</p>
+                        </div>
+                    </div>` : ''}
                 `;
                 
                 // Parents section
                 if (parents.length > 0) {
                     html += `<h3 class="relationship-title">Parents</h3>`;
                     parents.forEach(parent => {
+                        const relationshipType = this.getRelationshipType('parent', parent.id, member.id);
                         html += `
                             <div class="relationship-item" data-id="${parent.id}">
-                                ${this.getDisplayName(parent)}
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        ${parent.photo ? `<img src="${parent.photo}" class="me-2" width="30" height="30" style="border-radius: 50%; object-fit: cover;">` : ''}
+                                        ${this.getDisplayName(parent)}
+                                    </div>
+                                    ${relationshipType ? `<span class="badge bg-info">${this.capitalizeFirst(relationshipType)}</span>` : ''}
+                                </div>
                             </div>
                         `;
                     });
@@ -805,11 +1163,37 @@
                 
                 // Spouses section
                 if (spouses.length > 0) {
-                    html += `<h3 class="relationship-title">Spouses</h3>`;
+                    html += `<h3 class="relationship-title">Spouses/Partners</h3>`;
                     spouses.forEach(spouse => {
+                        const relationshipType = this.getRelationshipType('spouse', member.id, spouse.id);
                         html += `
                             <div class="relationship-item" data-id="${spouse.id}">
-                                ${this.getDisplayName(spouse)}
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        ${spouse.photo ? `<img src="${spouse.photo}" class="me-2" width="30" height="30" style="border-radius: 50%; object-fit: cover;">` : ''}
+                                        ${this.getDisplayName(spouse)}
+                                    </div>
+                                    ${relationshipType ? `<span class="badge bg-info">${this.capitalizeFirst(relationshipType)}</span>` : ''}
+                                </div>
+                            </div>
+                        `;
+                    });
+                }
+                
+                // Siblings section
+                if (siblings.length > 0) {
+                    html += `<h3 class="relationship-title">Siblings</h3>`;
+                    siblings.forEach(sibling => {
+                        const relationshipType = this.getRelationshipType('sibling', member.id, sibling.id);
+                        html += `
+                            <div class="relationship-item" data-id="${sibling.id}">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        ${sibling.photo ? `<img src="${sibling.photo}" class="me-2" width="30" height="30" style="border-radius: 50%; object-fit: cover;">` : ''}
+                                        ${this.getDisplayName(sibling)}
+                                    </div>
+                                    ${relationshipType ? `<span class="badge bg-info">${this.capitalizeFirst(relationshipType)}</span>` : ''}
+                                </div>
                             </div>
                         `;
                     });
@@ -819,9 +1203,16 @@
                 if (children.length > 0) {
                     html += `<h3 class="relationship-title">Children</h3>`;
                     children.forEach(child => {
+                        const relationshipType = this.getRelationshipType('parent', member.id, child.id);
                         html += `
                             <div class="relationship-item" data-id="${child.id}">
-                                ${this.getDisplayName(child)}
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        ${child.photo ? `<img src="${child.photo}" class="me-2" width="30" height="30" style="border-radius: 50%; object-fit: cover;">` : ''}
+                                        ${this.getDisplayName(child)}
+                                    </div>
+                                    ${relationshipType ? `<span class="badge bg-info">${this.capitalizeFirst(relationshipType)}</span>` : ''}
+                                </div>
                             </div>
                         `;
                     });
@@ -843,6 +1234,17 @@
                 this.showPage('profile');
             },
             
+            // Get relationship type between two people
+            getRelationshipType: function(baseType, fromId, toId) {
+                const relationship = this.relationships.find(r => 
+                    (r.type === baseType && r.from === fromId && r.to === toId) ||
+                    (r.type === baseType && r.from === toId && r.to === fromId && baseType === 'spouse') ||
+                    (r.type === baseType && r.from === toId && r.to === fromId && baseType === 'sibling')
+                );
+                
+                return relationship ? relationship.relationshipType : null;
+            },
+            
             // Get parents of a person
             getParents: function(personId) {
                 return this.relationships
@@ -862,12 +1264,102 @@
                     .filter(Boolean);
             },
             
+            // Get siblings of a person
+            getSiblings: function(personId) {
+                // Direct sibling relationships
+                const directSiblings = this.relationships
+                    .filter(r => (r.from === personId || r.to === personId) && r.type === 'sibling')
+                    .map(r => {
+                        const siblingId = r.from === personId ? r.to : r.from;
+                        return this.members.find(m => m.id === siblingId);
+                    })
+                    .filter(Boolean);
+                
+                // Siblings through parents (same parents)
+                const parents = this.getParents(personId);
+                
+                let parentSiblings = [];
+                if (parents.length > 0) {
+                    const siblingIds = new Set();
+                    
+                    parents.forEach(parent => {
+                        // Get all children of this parent
+                        const children = this.getChildren(parent.id);
+                        
+                        children.forEach(child => {
+                            if (child.id !== personId) {
+                                siblingIds.add(child.id);
+                            }
+                        });
+                    });
+                    
+                    parentSiblings = Array.from(siblingIds)
+                        .map(id => this.members.find(m => m.id === id))
+                        .filter(Boolean);
+                }
+                
+                // Combine both lists and remove duplicates
+                const allSiblings = [...directSiblings, ...parentSiblings];
+                const uniqueSiblings = Array.from(new Map(allSiblings.map(sibling => [sibling.id, sibling])).values());
+                
+                return uniqueSiblings;
+            },
+            
             // Get children of a person
             getChildren: function(personId) {
                 return this.relationships
                     .filter(r => r.from === personId && r.type === 'parent')
                     .map(r => this.members.find(m => m.id === r.to))
                     .filter(Boolean);
+            },
+            
+            // Zoom the tree
+            zoomTree: function(zoomDelta) {
+                const svg = d3.select('#tree-container svg');
+                if (!svg.empty()) {
+                    const zoom = d3.zoom();
+                    
+                    // Get current transform
+                    let transform = d3.zoomTransform(svg.node());
+                    
+                    // Calculate new scale
+                    this.zoomLevel = Math.max(0.1, Math.min(3, this.zoomLevel + zoomDelta));
+                    
+                    // Apply new transform
+                    svg.call(
+                        zoom.transform,
+                        transform.scale(this.zoomLevel / transform.k)
+                    );
+                }
+            },
+            
+            // Center the tree
+            centerTree: function() {
+                const svg = d3.select('#tree-container svg');
+                const container = document.getElementById('tree-container');
+                
+                if (!svg.empty() && container) {
+                    const zoom = d3.zoom();
+                    const g = svg.select('g');
+                    
+                    if (!g.empty()) {
+                        const bounds = g.node().getBBox();
+                        const width = container.clientWidth;
+                        const height = container.clientHeight;
+                        const centerX = bounds.x + bounds.width / 2;
+                        const centerY = bounds.y + bounds.height / 2;
+                        
+                        const scale = 0.9 / Math.max(bounds.width / width, bounds.height / height);
+                        const translate = [width / 2 - scale * centerX, height / 2 - scale * centerY];
+                        
+                        this.zoomLevel = scale;
+                        
+                        svg.call(
+                            zoom.transform,
+                            d3.zoomIdentity.translate(translate[0], translate[1]).scale(scale)
+                        );
+                    }
+                }
             },
             
             // Build family tree data structure
@@ -881,7 +1373,19 @@
                     })
                     .map(member => member.id);
                 
-                if (rootMemberIds.length === 0) return null;
+                if (rootMemberIds.length === 0 && this.members.length > 0) {
+                    // If there are no clear root nodes but we have members,
+                    // take the oldest members (by birth year) as roots
+                    const sortedMembers = [...this.members].sort((a, b) => {
+                        const yearA = a.birthYear ? parseInt(a.birthYear) : 9999;
+                        const yearB = b.birthYear ? parseInt(b.birthYear) : 9999;
+                        return yearA - yearB;
+                    });
+                    
+                    // Take the oldest 5% or at least one
+                    const numRoots = Math.max(1, Math.ceil(sortedMembers.length * 0.05));
+                    return sortedMembers.slice(0, numRoots).map(member => member.id);
+                }
                 
                 // Process each root node to create family units
                 const familyUnits = [];
@@ -991,12 +1495,15 @@
                 // Find intersection (common children)
                 const commonChildrenIds = children1.filter(id => children2.includes(id));
                 
-                if (commonChildrenIds.length === 0) return [];
+                // If no common children, check for all children of parent1
+                const allChildrenIds = commonChildrenIds.length > 0 ? commonChildrenIds : children1;
+                
+                if (allChildrenIds.length === 0) return [];
                 
                 const childrenUnits = [];
                 
-                // Process each common child
-                commonChildrenIds.forEach(childId => {
+                // Process each child
+                allChildrenIds.forEach(childId => {
                     const child = this.members.find(m => m.id === childId);
                     
                     // Find all spouses of this child
@@ -1036,7 +1543,7 @@
             },
             
             // Render the family tree
-            renderTree: function() {
+            renderTree: function(forceReorganize = false) {
                 const container = document.getElementById('tree-container');
                 container.innerHTML = '';
                 
@@ -1110,6 +1617,8 @@
                 const scale = 0.9 / Math.max(bounds.width / width, bounds.height / height);
                 const translate = [width / 2 - scale * centerX, height / 2 - scale * centerY];
                 
+                this.zoomLevel = scale;
+                
                 svg.call(zoom.transform, d3.zoomIdentity
                     .translate(translate[0], translate[1])
                     .scale(scale));
@@ -1124,17 +1633,10 @@
                 
                 // Position each unit and its children
                 units.forEach(unit => {
-                    // Create a copy with position
-                    const positionedUnit = {
-                        ...unit,
-                        x: currentX,
-                        y: startY + level * levelHeight,
-                        level: level
-                    };
-                    
-                    // Position children recursively
+                    // Position children recursively first to know how wide they are
+                    let childrenPositioned = [];
                     if (unit.children && unit.children.length > 0) {
-                        positionedUnit.children = this.layoutFamilyTree(
+                        childrenPositioned = this.layoutFamilyTree(
                             unit.children, 
                             level + 1, 
                             currentX, 
@@ -1144,13 +1646,46 @@
                             levelHeight, 
                             siblingDistance
                         );
-                    } else {
-                        positionedUnit.children = [];
                     }
+                    
+                    // Calculate the center X position based on children
+                    let unitX = currentX;
+                    if (childrenPositioned.length > 0) {
+                        const leftMostChild = childrenPositioned[0];
+                        const rightMostChild = childrenPositioned[childrenPositioned.length - 1];
+                        const childrenCenter = (leftMostChild.x + rightMostChild.x) / 2;
+                        unitX = childrenCenter;
+                    }
+                    
+                    // Create a copy with position
+                    const positionedUnit = {
+                        ...unit,
+                        x: unitX,
+                        y: startY + level * levelHeight,
+                        level: level,
+                        children: childrenPositioned
+                    };
                     
                     spacedUnits.push(positionedUnit);
                     currentX += boxWidth + siblingDistance;
                 });
+                
+                // Adjust for overlaps
+                for (let i = 1; i < spacedUnits.length; i++) {
+                    const prevUnit = spacedUnits[i-1];
+                    const currUnit = spacedUnits[i];
+                    
+                    const minDistance = boxWidth + siblingDistance;
+                    if (currUnit.x - prevUnit.x < minDistance) {
+                        const shift = minDistance - (currUnit.x - prevUnit.x);
+                        currUnit.x += shift;
+                        
+                        // Shift all subsequent units
+                        for (let j = i + 1; j < spacedUnits.length; j++) {
+                            spacedUnits[j].x += shift;
+                        }
+                    }
+                }
                 
                 return spacedUnits;
             },
@@ -1281,6 +1816,43 @@
                         .attr('points', `${width/2},0 ${width},${height/2} ${width/2},${height} 0,${height/2}`);
                 }
                 
+                // Add photo if available
+                if (person.photo) {
+                    // Create a clip path for the photo
+                    const clipId = `clip-${person.id}`;
+                    
+                    const defs = group.append('defs');
+                    
+                    const clipPath = defs.append('clipPath')
+                        .attr('id', clipId);
+                    
+                    if (person.gender === 'male') {
+                        clipPath.append('rect')
+                            .attr('x', 0)
+                            .attr('y', 0)
+                            .attr('width', 40)
+                            .attr('height', 40)
+                            .attr('rx', 20);
+                    } else if (person.gender === 'female') {
+                        clipPath.append('circle')
+                            .attr('cx', 20)
+                            .attr('cy', 20)
+                            .attr('r', 20);
+                    } else {
+                        clipPath.append('circle')
+                            .attr('cx', 20)
+                            .attr('cy', 20)
+                            .attr('r', 20);
+                    }
+                    
+                    nodeGroup.append('image')
+                        .attr('class', 'person-photo')
+                        .attr('xlink:href', person.photo)
+                        .attr('width', 40)
+                        .attr('height', 40)
+                        .attr('clip-path', `url(#${clipId})`);
+                }
+                
                 // Add name
                 nodeGroup.append('text')
                     .attr('x', width / 2)
@@ -1289,11 +1861,16 @@
                 
                 // Add birth year below
                 if (person.birthYear) {
+                    let yearText = person.birthYear;
+                    if (person.deathYear) {
+                        yearText += `-${person.deathYear}`;
+                    }
+                    
                     nodeGroup.append('text')
                         .attr('class', 'family-node-label')
                         .attr('x', width / 2)
                         .attr('y', height + 20)
-                        .text(person.birthYear);
+                        .text(yearText);
                 }
             },
             
@@ -1360,11 +1937,29 @@
                             familyTreeApp.showPage('form');
                         };
                         break;
+                    case 'add-member-floating':
+                        button.onclick = () => {
+                            familyTreeApp.resetForm();
+                            familyTreeApp.showPage('form');
+                        };
+                        break;
                     case 'export-button':
                         button.onclick = () => familyTreeApp.exportData();
                         break;
                     case 'back-to-tree-button':
                         button.onclick = () => familyTreeApp.showPage('tree');
+                        break;
+                    case 'organize-tree-button':
+                        button.onclick = () => familyTreeApp.renderTree(true);
+                        break;
+                    case 'zoom-in-button':
+                        button.onclick = () => familyTreeApp.zoomTree(0.2);
+                        break;
+                    case 'zoom-out-button':
+                        button.onclick = () => familyTreeApp.zoomTree(-0.2);
+                        break;
+                    case 'center-tree-button':
+                        button.onclick = () => familyTreeApp.centerTree();
                         break;
                 }
             });
