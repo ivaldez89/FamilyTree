@@ -1,0 +1,1374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Traditional Family Tree</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+        }
+        
+        .welcome-page {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 2rem;
+        }
+        
+        .tree-container {
+            height: calc(100vh - 60px);
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .page {
+            display: none;
+        }
+        
+        .page.active {
+            display: block;
+        }
+        
+        .form-page {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .profile-page {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        .tree-toolbar {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            z-index: 100;
+            background-color: white;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .preview-image {
+            width: 150px;
+            height: 150px;
+            object-fit: cover;
+            border-radius: 5px;
+        }
+        
+        .node {
+            cursor: pointer;
+        }
+        
+        .node-male {
+            fill: #5D9CEC;
+            stroke: #4A89DC;
+            stroke-width: 2px;
+        }
+        
+        .node-female {
+            fill: #EC87C0;
+            stroke: #D770AD;
+            stroke-width: 2px;
+        }
+        
+        .node-unknown {
+            fill: #AAB2BD;
+            stroke: #656D78;
+            stroke-width: 2px;
+        }
+        
+        .tree-link {
+            fill: none;
+            stroke: #656D78;
+            stroke-width: 2px;
+        }
+        
+        .marriage-link {
+            fill: none;
+            stroke: #8e44ad;
+            stroke-width: 2px;
+        }
+        
+        .profile-header {
+            display: flex;
+            margin-bottom: 2rem;
+        }
+        
+        .profile-picture {
+            width: 150px;
+            height: 150px;
+            object-fit: cover;
+            border-radius: 5px;
+            margin-right: 2rem;
+        }
+        
+        .profile-info {
+            flex: 1;
+        }
+        
+        .relationship-title {
+            margin-top: 2rem;
+            font-weight: bold;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .relationship-item {
+            margin: 1rem 0;
+            padding: 0.5rem;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        
+        .relationship-item:hover {
+            background-color: #e9ecef;
+        }
+        
+        .family-node text {
+            text-anchor: middle;
+            dominant-baseline: middle;
+            font-size: 12px;
+            font-weight: bold;
+            fill: #fff;
+        }
+        
+        .family-node-label {
+            text-anchor: middle;
+            font-size: 12px;
+            font-weight: bold;
+            fill: #333;
+        }
+        
+        .save-notice {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 5px;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        
+        .save-notice.show {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <!-- Welcome Page -->
+    <div id="welcome-page" class="page welcome-page active">
+        <svg width="200" height="200" viewBox="0 0 200 200" class="mb-4">
+            <style>
+                .tree-trunk { fill: #8B4513; }
+                .tree-leaves { fill: #228B22; }
+            </style>
+            <rect class="tree-trunk" x="95" y="140" width="10" height="40"/>
+            <circle class="tree-leaves" cx="100" cy="90" r="60"/>
+            <path class="tree-leaves" d="M100,140 C70,120 30,120 20,80 C10,40 70,20 100,40 C130,20 190,40 180,80 C170,120 130,120 100,140 Z"/>
+        </svg>
+        <h1 class="display-4 mb-4">Welcome to Your Family Tree</h1>
+        <p class="lead mb-5">A simple way to create and view your family connections</p>
+        
+        <div id="storage-options" class="mb-4">
+            <div class="d-flex flex-column gap-3">
+                <button id="start-button" class="btn btn-primary btn-lg">
+                    <i class="fas fa-arrow-right me-2"></i>Start
+                </button>
+                <button id="import-button" class="btn btn-outline-primary">
+                    <i class="fas fa-file-import me-2"></i>Import Existing Data
+                </button>
+                <input type="file" id="import-file" accept=".json" class="d-none">
+            </div>
+        </div>
+    </div>
+    
+    <!-- Add Member Form -->
+    <div id="form-page" class="page form-page">
+        <h2 class="mb-4">Add Family Member</h2>
+        
+        <div id="success-alert" class="alert alert-success d-none" role="alert">
+            Family member added successfully!
+        </div>
+        
+        <form id="member-form">
+            <div class="card mb-4">
+                <div class="card-header">Personal Information</div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label for="firstName" class="form-label">First Name</label>
+                            <input type="text" class="form-control" id="firstName">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="middleName" class="form-label">Middle Name</label>
+                            <input type="text" class="form-control" id="middleName">
+                        </div>
+                        <div class="col-md-4">
+                            <label for="lastName" class="form-label">Last Name</label>
+                            <input type="text" class="form-control" id="lastName">
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="gender" class="form-label">Gender</label>
+                            <select class="form-select" id="gender">
+                                <option value="" selected>Select gender</option>
+                                <option value="male">Male</option>
+                                <option value="female">Female</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="birthYear" class="form-label">Birth Year</label>
+                            <input type="number" class="form-control" id="birthYear" placeholder="YYYY">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Photo</label>
+                        <input type="file" class="form-control" id="photoInput" accept="image/*">
+                        <div class="mt-2" id="photoPreviewContainer">
+                            <img id="photoPreview" class="preview-image d-none">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card mb-4">
+                <div class="card-header">Family Relationships</div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="parentSelect" class="form-label">Add Parent</label>
+                        <div class="input-group">
+                            <select class="form-select" id="parentSelect">
+                                <option value="" selected>Select parent</option>
+                                <!-- Will be populated by JavaScript -->
+                            </select>
+                            <button class="btn btn-outline-primary" type="button" id="addParentBtn">Add</button>
+                        </div>
+                        <div id="parentsList" class="mt-2">
+                            <!-- Parents will be listed here -->
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="spouseSelect" class="form-label">Add Spouse</label>
+                        <div class="input-group">
+                            <select class="form-select" id="spouseSelect">
+                                <option value="" selected>Select spouse</option>
+                                <!-- Will be populated by JavaScript -->
+                            </select>
+                            <button class="btn btn-outline-primary" type="button" id="addSpouseBtn">Add</button>
+                        </div>
+                        <div id="spousesList" class="mt-2">
+                            <!-- Spouses will be listed here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="d-flex justify-content-between">
+                <button type="button" id="cancel-button" class="btn btn-outline-secondary">Cancel</button>
+                <div>
+                    <button type="button" id="reset-button" class="btn btn-outline-secondary me-2">Reset</button>
+                    <button type="button" id="save-button" class="btn btn-primary">Save Family Member</button>
+                </div>
+            </div>
+        </form>
+    </div>
+    
+    <!-- Tree View -->
+    <div id="tree-page" class="page">
+        <div class="tree-toolbar">
+            <button id="add-member-button" class="btn btn-primary mb-2 me-2">
+                <i class="fas fa-plus me-2"></i>Add Member
+            </button>
+            <button id="export-button" class="btn btn-outline-primary mb-2">
+                <i class="fas fa-download me-2"></i>Export
+            </button>
+        </div>
+        
+        <div id="tree-container" class="tree-container">
+            <!-- Tree will be rendered here -->
+        </div>
+        
+        <div id="save-notice" class="save-notice">Data saved to localStorage</div>
+    </div>
+    
+    <!-- Profile View -->
+    <div id="profile-page" class="page profile-page">
+        <div id="profile-container">
+            <!-- Will be populated by JavaScript -->
+        </div>
+        
+        <div class="mt-4">
+            <button id="back-to-tree-button" class="btn btn-outline-secondary">Back to Tree</button>
+            <button id="edit-profile-button" class="btn btn-primary float-end">Edit</button>
+        </div>
+    </div>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <script>
+        // Main application
+        const familyTreeApp = {
+            // Data
+            members: [],
+            relationships: [],
+            currentMember: null,
+            
+            // Pages
+            pages: {
+                welcome: document.getElementById('welcome-page'),
+                form: document.getElementById('form-page'),
+                tree: document.getElementById('tree-page'),
+                profile: document.getElementById('profile-page')
+            },
+            
+            // Initialize the application
+            init: function() {
+                this.loadData();
+                this.setupEventListeners();
+                this.populateMemberSelectors();
+                
+                if (this.members.length > 0) {
+                    this.showPage('tree');
+                    this.renderTree();
+                }
+            },
+            
+            // Load data from localStorage
+            loadData: function() {
+                try {
+                    const membersData = localStorage.getItem('familyTreeMembers');
+                    const relationshipsData = localStorage.getItem('familyTreeRelationships');
+                    
+                    if (membersData) {
+                        this.members = JSON.parse(membersData);
+                    }
+                    
+                    if (relationshipsData) {
+                        this.relationships = JSON.parse(relationshipsData);
+                    }
+                } catch (error) {
+                    console.error('Error loading data from localStorage:', error);
+                    // If there's an error, start with empty data
+                    this.members = [];
+                    this.relationships = [];
+                }
+            },
+            
+            // Save data to localStorage
+            saveData: function() {
+                try {
+                    localStorage.setItem('familyTreeMembers', JSON.stringify(this.members));
+                    localStorage.setItem('familyTreeRelationships', JSON.stringify(this.relationships));
+                    
+                    // Show save notice
+                    const saveNotice = document.getElementById('save-notice');
+                    saveNotice.classList.add('show');
+                    
+                    // Hide notice after 2 seconds
+                    setTimeout(() => {
+                        saveNotice.classList.remove('show');
+                    }, 2000);
+                    
+                    return true;
+                } catch (error) {
+                    console.error('Error saving data to localStorage:', error);
+                    alert('Could not save data to localStorage. Your browser might have storage restrictions or you might be in incognito mode.');
+                    return false;
+                }
+            },
+            
+            // Export data as file
+            exportData: function() {
+                const data = {
+                    members: this.members,
+                    relationships: this.relationships,
+                    exportDate: new Date().toISOString()
+                };
+                
+                const jsonData = JSON.stringify(data, null, 2);
+                const blob = new Blob([jsonData], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `family_tree_${new Date().toISOString().slice(0, 10)}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            },
+            
+            // Import data from file
+            importData: function(jsonData) {
+                try {
+                    const data = JSON.parse(jsonData);
+                    
+                    if (data.members && Array.isArray(data.members) && 
+                        data.relationships && Array.isArray(data.relationships)) {
+                        this.members = data.members;
+                        this.relationships = data.relationships;
+                        this.saveData();
+                        this.populateMemberSelectors();
+                        this.renderTree();
+                        return true;
+                    }
+                } catch (error) {
+                    console.error('Error importing data:', error);
+                }
+                
+                return false;
+            },
+            
+            // Setup event listeners
+            setupEventListeners: function() {
+                // Welcome page
+                document.getElementById('start-button').addEventListener('click', () => {
+                    this.showPage('form');
+                });
+                
+                // Import
+                document.getElementById('import-button').addEventListener('click', () => {
+                    document.getElementById('import-file').click();
+                });
+                
+                document.getElementById('import-file').addEventListener('change', (e) => {
+                    if (e.target.files.length > 0) {
+                        const file = e.target.files[0];
+                        const reader = new FileReader();
+                        
+                        reader.onload = (event) => {
+                            if (this.importData(event.target.result)) {
+                                alert('Data imported successfully!');
+                                this.showPage('tree');
+                            } else {
+                                alert('Error importing data. Please check file format.');
+                            }
+                        };
+                        
+                        reader.readAsText(file);
+                    }
+                });
+                
+                // Form page
+                document.getElementById('cancel-button').addEventListener('click', () => {
+                    if (this.members.length > 0) {
+                        this.showPage('tree');
+                    } else {
+                        this.showPage('welcome');
+                    }
+                });
+                
+                document.getElementById('reset-button').addEventListener('click', () => {
+                    this.resetForm();
+                });
+                
+                document.getElementById('save-button').addEventListener('click', () => {
+                    this.saveMember();
+                });
+                
+                // Photo preview
+                document.getElementById('photoInput').addEventListener('change', (e) => {
+                    if (e.target.files && e.target.files[0]) {
+                        const reader = new FileReader();
+                        reader.onload = (event) => {
+                            const photoPreview = document.getElementById('photoPreview');
+                            photoPreview.src = event.target.result;
+                            photoPreview.classList.remove('d-none');
+                        };
+                        reader.readAsDataURL(e.target.files[0]);
+                    }
+                });
+                
+                // Relationship buttons
+                document.getElementById('addParentBtn').addEventListener('click', () => {
+                    const parentSelect = document.getElementById('parentSelect');
+                    if (parentSelect.value) {
+                        const parent = this.members.find(m => m.id === parentSelect.value);
+                        if (parent) {
+                            this.addRelationshipToForm('parent', parent);
+                            parentSelect.value = '';
+                        }
+                    }
+                });
+                
+                document.getElementById('addSpouseBtn').addEventListener('click', () => {
+                    const spouseSelect = document.getElementById('spouseSelect');
+                    if (spouseSelect.value) {
+                        const spouse = this.members.find(m => m.id === spouseSelect.value);
+                        if (spouse) {
+                            this.addRelationshipToForm('spouse', spouse);
+                            spouseSelect.value = '';
+                        }
+                    }
+                });
+                
+                // Tree page
+                document.getElementById('add-member-button').addEventListener('click', () => {
+                    this.resetForm();
+                    this.showPage('form');
+                });
+                
+                document.getElementById('export-button').addEventListener('click', () => {
+                    this.exportData();
+                });
+                
+                // Profile page
+                document.getElementById('back-to-tree-button').addEventListener('click', () => {
+                    this.showPage('tree');
+                });
+                
+                document.getElementById('edit-profile-button').addEventListener('click', () => {
+                    if (this.currentMember) {
+                        this.populateFormForEdit(this.currentMember);
+                        this.showPage('form');
+                    }
+                });
+            },
+            
+            // Show a specific page
+            showPage: function(pageName) {
+                Object.values(this.pages).forEach(page => {
+                    page.classList.remove('active');
+                });
+                
+                if (this.pages[pageName]) {
+                    this.pages[pageName].classList.add('active');
+                    
+                    if (pageName === 'tree') {
+                        this.renderTree();
+                    }
+                }
+            },
+            
+            // Reset the form
+            resetForm: function() {
+                document.getElementById('member-form').reset();
+                
+                document.getElementById('photoPreview').classList.add('d-none');
+                document.getElementById('parentsList').innerHTML = '';
+                document.getElementById('spousesList').innerHTML = '';
+                
+                document.getElementById('save-button').textContent = 'Save Family Member';
+                document.getElementById('save-button').dataset.editing = '';
+            },
+            
+            // Save a new member or update existing
+            saveMember: function() {
+                const firstName = document.getElementById('firstName').value.trim();
+                const middleName = document.getElementById('middleName').value.trim();
+                const lastName = document.getElementById('lastName').value.trim();
+                const gender = document.getElementById('gender').value;
+                const birthYear = document.getElementById('birthYear').value;
+                
+                // Basic validation
+                if (!firstName && !lastName) {
+                    alert('Please enter at least a first or last name');
+                    return;
+                }
+                
+                // Get photo if uploaded
+                const photoPreview = document.getElementById('photoPreview');
+                const photo = photoPreview.classList.contains('d-none') ? '' : photoPreview.src;
+                
+                // Create member object
+                const member = {
+                    firstName,
+                    middleName,
+                    lastName,
+                    gender,
+                    birthYear,
+                    photo
+                };
+                
+                // Get relationship data
+                const parentIds = Array.from(document.querySelectorAll('#parentsList [data-id]'))
+                    .map(el => el.dataset.id);
+                
+                const spouseIds = Array.from(document.querySelectorAll('#spousesList [data-id]'))
+                    .map(el => el.dataset.id);
+                
+                // Check if editing or adding new
+                const editingId = document.getElementById('save-button').dataset.editing;
+                
+                if (editingId) {
+                    member.id = editingId;
+                    this.updateMember(member);
+                    
+                    // Remove old relationships
+                    this.relationships = this.relationships.filter(r => 
+                        !(r.from === editingId && r.type === 'parent') && 
+                        !(r.to === editingId && r.type === 'parent') &&
+                        !((r.from === editingId || r.to === editingId) && r.type === 'spouse')
+                    );
+                } else {
+                    member.id = this.generateUniqueId();
+                    this.members.push(member);
+                }
+                
+                // Add relationships
+                parentIds.forEach(parentId => {
+                    this.relationships.push({
+                        from: parentId,
+                        to: member.id,
+                        type: 'parent'
+                    });
+                });
+                
+                spouseIds.forEach(spouseId => {
+                    this.relationships.push({
+                        from: member.id,
+                        to: spouseId,
+                        type: 'spouse'
+                    });
+                });
+                
+                // Save data
+                this.saveData();
+                
+                // Show success message
+                const successAlert = document.getElementById('success-alert');
+                successAlert.classList.remove('d-none');
+                successAlert.textContent = editingId ? 'Family member updated successfully!' : 'Family member added successfully!';
+                
+                setTimeout(() => {
+                    successAlert.classList.add('d-none');
+                }, 3000);
+                
+                // Update UI
+                this.populateMemberSelectors();
+                this.resetForm();
+                this.showPage('tree');
+            },
+            
+            // Update an existing member
+            updateMember: function(member) {
+                const index = this.members.findIndex(m => m.id === member.id);
+                if (index !== -1) {
+                    this.members[index] = member;
+                    this.saveData();
+                }
+            },
+            
+            // Add relationship to the form
+            addRelationshipToForm: function(type, person) {
+                const listElement = type === 'parent' ? document.getElementById('parentsList') : document.getElementById('spousesList');
+                
+                // Check if already added
+                if (listElement.querySelector(`[data-id="${person.id}"]`)) {
+                    return;
+                }
+                
+                const item = document.createElement('div');
+                item.className = 'alert alert-secondary d-flex justify-content-between align-items-center';
+                item.dataset.id = person.id;
+                
+                item.innerHTML = `
+                    <span>${this.getDisplayName(person)}</span>
+                    <button type="button" class="btn-close"></button>
+                `;
+                
+                listElement.appendChild(item);
+                
+                // Add remove event
+                item.querySelector('.btn-close').addEventListener('click', () => {
+                    item.remove();
+                });
+            },
+            
+            // Populate member selectors for relationships
+            populateMemberSelectors: function() {
+                const parentSelect = document.getElementById('parentSelect');
+                const spouseSelect = document.getElementById('spouseSelect');
+                
+                if (!parentSelect || !spouseSelect) return;
+                
+                // Clear existing options except first
+                while (parentSelect.options.length > 1) parentSelect.remove(1);
+                while (spouseSelect.options.length > 1) spouseSelect.remove(1);
+                
+                // Add members as options
+                this.members.forEach(member => {
+                    const option = document.createElement('option');
+                    option.value = member.id;
+                    option.textContent = this.getDisplayName(member);
+                    
+                    parentSelect.appendChild(option.cloneNode(true));
+                    spouseSelect.appendChild(option);
+                });
+            },
+            
+            // Populate form for editing
+            populateFormForEdit: function(member) {
+                document.getElementById('firstName').value = member.firstName || '';
+                document.getElementById('middleName').value = member.middleName || '';
+                document.getElementById('lastName').value = member.lastName || '';
+                document.getElementById('gender').value = member.gender || '';
+                document.getElementById('birthYear').value = member.birthYear || '';
+                
+                // Set photo if exists
+                const photoPreview = document.getElementById('photoPreview');
+                if (member.photo) {
+                    photoPreview.src = member.photo;
+                    photoPreview.classList.remove('d-none');
+                } else {
+                    photoPreview.classList.add('d-none');
+                }
+                
+                // Clear existing relationships
+                document.getElementById('parentsList').innerHTML = '';
+                document.getElementById('spousesList').innerHTML = '';
+                
+                // Add parents
+                this.relationships
+                    .filter(r => r.to === member.id && r.type === 'parent')
+                    .forEach(r => {
+                        const parent = this.members.find(m => m.id === r.from);
+                        if (parent) {
+                            this.addRelationshipToForm('parent', parent);
+                        }
+                    });
+                
+                // Add spouses
+                this.relationships
+                    .filter(r => (r.from === member.id || r.to === member.id) && r.type === 'spouse')
+                    .forEach(r => {
+                        const spouseId = r.from === member.id ? r.to : r.from;
+                        const spouse = this.members.find(m => m.id === spouseId);
+                        if (spouse) {
+                            this.addRelationshipToForm('spouse', spouse);
+                        }
+                    });
+                
+                // Update save button
+                document.getElementById('save-button').textContent = 'Update Family Member';
+                document.getElementById('save-button').dataset.editing = member.id;
+            },
+            
+            // Show profile page
+            showProfile: function(member) {
+                this.currentMember = member;
+                
+                const container = document.getElementById('profile-container');
+                
+                // Get relationships
+                const parents = this.getParents(member.id);
+                const spouses = this.getSpouses(member.id);
+                const children = this.getChildren(member.id);
+                
+                let html = `
+                    <div class="profile-header">
+                        ${member.photo 
+                            ? `<img src="${member.photo}" class="profile-picture" alt="Profile photo">`
+                            : `<div class="profile-picture d-flex align-items-center justify-content-center bg-light">
+                                <i class="fas fa-user fa-4x text-secondary"></i>
+                              </div>`
+                        }
+                        <div class="profile-info">
+                            <h1>${this.getDisplayName(member)}</h1>
+                            ${member.gender ? `<p><strong>Gender:</strong> ${this.capitalizeFirst(member.gender)}</p>` : ''}
+                            ${member.birthYear ? `<p><strong>Birth Year:</strong> ${member.birthYear}</p>` : ''}
+                        </div>
+                    </div>
+                `;
+                
+                // Parents section
+                if (parents.length > 0) {
+                    html += `<h3 class="relationship-title">Parents</h3>`;
+                    parents.forEach(parent => {
+                        html += `
+                            <div class="relationship-item" data-id="${parent.id}">
+                                ${this.getDisplayName(parent)}
+                            </div>
+                        `;
+                    });
+                }
+                
+                // Spouses section
+                if (spouses.length > 0) {
+                    html += `<h3 class="relationship-title">Spouses</h3>`;
+                    spouses.forEach(spouse => {
+                        html += `
+                            <div class="relationship-item" data-id="${spouse.id}">
+                                ${this.getDisplayName(spouse)}
+                            </div>
+                        `;
+                    });
+                }
+                
+                // Children section
+                if (children.length > 0) {
+                    html += `<h3 class="relationship-title">Children</h3>`;
+                    children.forEach(child => {
+                        html += `
+                            <div class="relationship-item" data-id="${child.id}">
+                                ${this.getDisplayName(child)}
+                            </div>
+                        `;
+                    });
+                }
+                
+                container.innerHTML = html;
+                
+                // Add click events to relationship items
+                container.querySelectorAll('.relationship-item').forEach(item => {
+                    item.addEventListener('click', () => {
+                        const id = item.dataset.id;
+                        const person = this.members.find(m => m.id === id);
+                        if (person) {
+                            this.showProfile(person);
+                        }
+                    });
+                });
+                
+                this.showPage('profile');
+            },
+            
+            // Get parents of a person
+            getParents: function(personId) {
+                return this.relationships
+                    .filter(r => r.to === personId && r.type === 'parent')
+                    .map(r => this.members.find(m => m.id === r.from))
+                    .filter(Boolean);
+            },
+            
+            // Get spouses of a person
+            getSpouses: function(personId) {
+                return this.relationships
+                    .filter(r => (r.from === personId || r.to === personId) && r.type === 'spouse')
+                    .map(r => {
+                        const spouseId = r.from === personId ? r.to : r.from;
+                        return this.members.find(m => m.id === spouseId);
+                    })
+                    .filter(Boolean);
+            },
+            
+            // Get children of a person
+            getChildren: function(personId) {
+                return this.relationships
+                    .filter(r => r.from === personId && r.type === 'parent')
+                    .map(r => this.members.find(m => m.id === r.to))
+                    .filter(Boolean);
+            },
+            
+            // Build family tree data structure
+            buildFamilyTreeData: function() {
+                if (this.members.length === 0) return null;
+                
+                // Find people without parents (root nodes)
+                const rootMemberIds = this.members
+                    .filter(member => {
+                        return !this.relationships.some(r => r.to === member.id && r.type === 'parent');
+                    })
+                    .map(member => member.id);
+                
+                if (rootMemberIds.length === 0) return null;
+                
+                // Process each root node to create family units
+                const familyUnits = [];
+                
+                rootMemberIds.forEach(rootId => {
+                    // Get the root person
+                    const rootPerson = this.members.find(m => m.id === rootId);
+                    
+                    // Find all spouses of the root person
+                    const spouseIds = this.relationships
+                        .filter(r => (r.from === rootId || r.to === rootId) && r.type === 'spouse')
+                        .map(r => r.from === rootId ? r.to : r.from);
+                    
+                    if (spouseIds.length === 0) {
+                        // Person without spouse
+                        const familyUnit = {
+                            id: `family_${rootId}`,
+                            parents: [rootPerson],
+                            children: this.getChildrenFamilyUnits(rootId)
+                        };
+                        
+                        familyUnits.push(familyUnit);
+                    } else {
+                        // Process each marriage
+                        spouseIds.forEach(spouseId => {
+                            const spouse = this.members.find(m => m.id === spouseId);
+                            
+                            // Find children from this marriage
+                            const childrenUnits = this.getCommonChildrenFamilyUnits(rootId, spouseId);
+                            
+                            const familyUnit = {
+                                id: `family_${rootId}_${spouseId}`,
+                                parents: [rootPerson, spouse],
+                                children: childrenUnits
+                            };
+                            
+                            familyUnits.push(familyUnit);
+                        });
+                    }
+                });
+                
+                return familyUnits;
+            },
+            
+            // Get children of a person as family units
+            getChildrenFamilyUnits: function(parentId) {
+                // Find all children of this parent
+                const childrenIds = this.relationships
+                    .filter(r => r.from === parentId && r.type === 'parent')
+                    .map(r => r.to);
+                
+                if (childrenIds.length === 0) return [];
+                
+                const childrenUnits = [];
+                
+                // Process each child
+                childrenIds.forEach(childId => {
+                    const child = this.members.find(m => m.id === childId);
+                    
+                    // Find all spouses of this child
+                    const spouseIds = this.relationships
+                        .filter(r => (r.from === childId || r.to === childId) && r.type === 'spouse')
+                        .map(r => r.from === childId ? r.to : r.from);
+                    
+                    if (spouseIds.length === 0) {
+                        // Child without spouse
+                        const childUnit = {
+                            id: `family_${childId}`,
+                            parents: [child],
+                            children: this.getChildrenFamilyUnits(childId)
+                        };
+                        
+                        childrenUnits.push(childUnit);
+                    } else {
+                        // Process each marriage of the child
+                        spouseIds.forEach(spouseId => {
+                            const spouse = this.members.find(m => m.id === spouseId);
+                            
+                            // Find children from this marriage
+                            const grandchildrenUnits = this.getCommonChildrenFamilyUnits(childId, spouseId);
+                            
+                            const childUnit = {
+                                id: `family_${childId}_${spouseId}`,
+                                parents: [child, spouse],
+                                children: grandchildrenUnits
+                            };
+                            
+                            childrenUnits.push(childUnit);
+                        });
+                    }
+                });
+                
+                return childrenUnits;
+            },
+            
+            // Get common children of two parents as family units
+            getCommonChildrenFamilyUnits: function(parent1Id, parent2Id) {
+                // Find children with both parents
+                const children1 = this.relationships
+                    .filter(r => r.from === parent1Id && r.type === 'parent')
+                    .map(r => r.to);
+                
+                const children2 = this.relationships
+                    .filter(r => r.from === parent2Id && r.type === 'parent')
+                    .map(r => r.to);
+                
+                // Find intersection (common children)
+                const commonChildrenIds = children1.filter(id => children2.includes(id));
+                
+                if (commonChildrenIds.length === 0) return [];
+                
+                const childrenUnits = [];
+                
+                // Process each common child
+                commonChildrenIds.forEach(childId => {
+                    const child = this.members.find(m => m.id === childId);
+                    
+                    // Find all spouses of this child
+                    const spouseIds = this.relationships
+                        .filter(r => (r.from === childId || r.to === childId) && r.type === 'spouse')
+                        .map(r => r.from === childId ? r.to : r.from);
+                    
+                    if (spouseIds.length === 0) {
+                        // Child without spouse
+                        const childUnit = {
+                            id: `family_${childId}`,
+                            parents: [child],
+                            children: this.getChildrenFamilyUnits(childId)
+                        };
+                        
+                        childrenUnits.push(childUnit);
+                    } else {
+                        // Process each marriage of the child
+                        spouseIds.forEach(spouseId => {
+                            const spouse = this.members.find(m => m.id === spouseId);
+                            
+                            // Find children from this marriage
+                            const grandchildrenUnits = this.getCommonChildrenFamilyUnits(childId, spouseId);
+                            
+                            const childUnit = {
+                                id: `family_${childId}_${spouseId}`,
+                                parents: [child, spouse],
+                                children: grandchildrenUnits
+                            };
+                            
+                            childrenUnits.push(childUnit);
+                        });
+                    }
+                });
+                
+                return childrenUnits;
+            },
+            
+            // Render the family tree
+            renderTree: function() {
+                const container = document.getElementById('tree-container');
+                container.innerHTML = '';
+                
+                if (this.members.length === 0) {
+                    container.innerHTML = `
+                        <div class="d-flex flex-column align-items-center justify-content-center h-100">
+                            <h3 class="text-muted mb-4">No family members yet</h3>
+                            <button id="start-adding-button" class="btn btn-primary">Add Your First Family Member</button>
+                        </div>
+                    `;
+                    
+                    document.getElementById('start-adding-button').addEventListener('click', () => {
+                        this.resetForm();
+                        this.showPage('form');
+                    });
+                    
+                    return;
+                }
+                
+                const width = container.clientWidth;
+                const height = container.clientHeight;
+                
+                // Define tree layout parameters
+                const boxWidth = 120;
+                const boxHeight = 40;
+                const levelHeight = 120;
+                const siblingDistance = 20;
+                
+                // Create SVG container
+                const svg = d3.select(container)
+                    .append('svg')
+                    .attr('width', width)
+                    .attr('height', height);
+                
+                // Add zoom behavior
+                const zoom = d3.zoom()
+                    .scaleExtent([0.1, 3])
+                    .on('zoom', (event) => {
+                        g.attr('transform', event.transform);
+                    });
+                
+                svg.call(zoom);
+                
+                // Create main group for zooming
+                const g = svg.append('g');
+                
+                // Get tree data
+                const familyUnits = this.buildFamilyTreeData();
+                
+                if (!familyUnits || familyUnits.length === 0) {
+                    container.innerHTML = `
+                        <div class="d-flex flex-column align-items-center justify-content-center h-100">
+                            <h3 class="text-muted mb-4">Could not create family tree structure</h3>
+                            <p class="text-center">Try adding more family members with clear parent-child relationships.</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                // Calculate positions
+                const rootUnits = this.layoutFamilyTree(familyUnits, 0, width / 2, 0, boxWidth, boxHeight, levelHeight, siblingDistance);
+                
+                // Draw units recursively
+                this.drawFamilyUnits(g, rootUnits, boxWidth, boxHeight);
+                
+                // Center the view
+                const bounds = g.node().getBBox();
+                const centerX = bounds.x + bounds.width / 2;
+                const centerY = bounds.y + bounds.height / 2;
+                
+                const scale = 0.9 / Math.max(bounds.width / width, bounds.height / height);
+                const translate = [width / 2 - scale * centerX, height / 2 - scale * centerY];
+                
+                svg.call(zoom.transform, d3.zoomIdentity
+                    .translate(translate[0], translate[1])
+                    .scale(scale));
+            },
+            
+            // Layout family tree by calculating positions
+            layoutFamilyTree: function(units, level, startX, startY, boxWidth, boxHeight, levelHeight, siblingDistance) {
+                if (!units || units.length === 0) return [];
+                
+                const spacedUnits = [];
+                let currentX = startX - ((units.length - 1) * (boxWidth + siblingDistance)) / 2;
+                
+                // Position each unit and its children
+                units.forEach(unit => {
+                    // Create a copy with position
+                    const positionedUnit = {
+                        ...unit,
+                        x: currentX,
+                        y: startY + level * levelHeight,
+                        level: level
+                    };
+                    
+                    // Position children recursively
+                    if (unit.children && unit.children.length > 0) {
+                        positionedUnit.children = this.layoutFamilyTree(
+                            unit.children, 
+                            level + 1, 
+                            currentX, 
+                            startY, 
+                            boxWidth, 
+                            boxHeight, 
+                            levelHeight, 
+                            siblingDistance
+                        );
+                    } else {
+                        positionedUnit.children = [];
+                    }
+                    
+                    spacedUnits.push(positionedUnit);
+                    currentX += boxWidth + siblingDistance;
+                });
+                
+                return spacedUnits;
+            },
+            
+            // Draw family units recursively
+            drawFamilyUnits: function(svg, units, boxWidth, boxHeight) {
+                if (!units || units.length === 0) return;
+                
+                units.forEach(unit => {
+                    // Draw family unit
+                    this.drawFamilyUnit(svg, unit, boxWidth, boxHeight);
+                    
+                    // Draw connections to children
+                    if (unit.children && unit.children.length > 0) {
+                        // Draw connection line down from this unit
+                        const lineStartY = unit.y + boxHeight;
+                        const lineEndY = unit.children[0].y - 20; // Adjust based on your layout
+                        
+                        // Vertical line down from parents
+                        svg.append('path')
+                            .attr('class', 'tree-link')
+                            .attr('d', `M${unit.x + boxWidth/2},${lineStartY} V${lineEndY}`);
+                        
+                        // Horizontal line connecting all children if more than one
+                        if (unit.children.length > 1) {
+                            const leftMostChild = unit.children[0];
+                            const rightMostChild = unit.children[unit.children.length - 1];
+                            
+                            svg.append('path')
+                                .attr('class', 'tree-link')
+                                .attr('d', `M${leftMostChild.x + boxWidth/2},${lineEndY} H${rightMostChild.x + boxWidth/2}`);
+                        }
+                        
+                        // Vertical lines to each child
+                        unit.children.forEach(child => {
+                            svg.append('path')
+                                .attr('class', 'tree-link')
+                                .attr('d', `M${child.x + boxWidth/2},${lineEndY} V${child.y}`);
+                        });
+                        
+                        // Recursively draw children
+                        this.drawFamilyUnits(svg, unit.children, boxWidth, boxHeight);
+                    }
+                });
+            },
+            
+            // Draw a single family unit
+            drawFamilyUnit: function(svg, unit, boxWidth, boxHeight) {
+                const parents = unit.parents;
+                
+                if (parents.length === 0) return;
+                
+                // Create group for this family unit
+                const familyGroup = svg.append('g')
+                    .attr('class', 'family-unit')
+                    .attr('transform', `translate(${unit.x},${unit.y})`);
+                
+                // Draw parents
+                if (parents.length === 1) {
+                    // Single parent
+                    const parent = parents[0];
+                    this.drawPersonNode(familyGroup, parent, boxWidth / 2, 0, boxWidth, boxHeight);
+                } else if (parents.length === 2) {
+                    // Two parents (marriage)
+                    const spacing = 20; // Space between spouses
+                    const totalWidth = boxWidth * 2 + spacing;
+                    
+                    // Draw first parent
+                    this.drawPersonNode(
+                        familyGroup, 
+                        parents[0], 
+                        0, 
+                        0, 
+                        boxWidth, 
+                        boxHeight
+                    );
+                    
+                    // Draw second parent
+                    this.drawPersonNode(
+                        familyGroup, 
+                        parents[1], 
+                        boxWidth + spacing, 
+                        0, 
+                        boxWidth, 
+                        boxHeight
+                    );
+                    
+                    // Draw marriage line
+                    familyGroup.append('path')
+                        .attr('class', 'marriage-link')
+                        .attr('d', `M${boxWidth},${boxHeight/2} H${boxWidth + spacing}`);
+                }
+            },
+            
+            // Draw a person node
+            drawPersonNode: function(group, person, x, y, width, height) {
+                const nodeGroup = group.append('g')
+                    .attr('class', 'family-node')
+                    .attr('transform', `translate(${x},${y})`)
+                    .attr('data-id', person.id)
+                    .style('cursor', 'pointer')
+                    .on('click', (event) => {
+                        // Find the member from the clicked node
+                        const id = event.currentTarget.getAttribute('data-id');
+                        const member = this.members.find(m => m.id === id);
+                        if (member) {
+                            this.showProfile(member);
+                        }
+                    });
+                
+                // Draw shape based on gender
+                if (person.gender === 'male') {
+                    nodeGroup.append('rect')
+                        .attr('class', 'node-male')
+                        .attr('width', width)
+                        .attr('height', height)
+                        .attr('rx', 5);
+                } else if (person.gender === 'female') {
+                    nodeGroup.append('ellipse')
+                        .attr('class', 'node-female')
+                        .attr('cx', width / 2)
+                        .attr('cy', height / 2)
+                        .attr('rx', width / 2)
+                        .attr('ry', height / 2);
+                } else {
+                    nodeGroup.append('polygon')
+                        .attr('class', 'node-unknown')
+                        .attr('points', `${width/2},0 ${width},${height/2} ${width/2},${height} 0,${height/2}`);
+                }
+                
+                // Add name
+                nodeGroup.append('text')
+                    .attr('x', width / 2)
+                    .attr('y', height / 2 + 5)
+                    .text(this.getShortName(person));
+                
+                // Add birth year below
+                if (person.birthYear) {
+                    nodeGroup.append('text')
+                        .attr('class', 'family-node-label')
+                        .attr('x', width / 2)
+                        .attr('y', height + 20)
+                        .text(person.birthYear);
+                }
+            },
+            
+            // Utility functions
+            getDisplayName: function(member) {
+                if (!member) return 'Unknown';
+                
+                let name = member.firstName || '';
+                if (member.middleName) name += ' ' + member.middleName;
+                if (member.lastName) name += ' ' + member.lastName;
+                
+                return name.trim() || 'Unnamed';
+            },
+            
+            getShortName: function(member) {
+                if (!member) return '';
+                
+                // Just first name for space reasons
+                return member.firstName || (member.lastName || 'Unnamed');
+            },
+            
+            capitalizeFirst: function(str) {
+                return str.charAt(0).toUpperCase() + str.slice(1);
+            },
+            
+            generateUniqueId: function() {
+                return Date.now().toString(36) + Math.random().toString(36).substring(2);
+            }
+        };
+        
+        // Initialize when document is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            familyTreeApp.init();
+            
+            // Additional click handlers for reliability
+            document.querySelectorAll('button').forEach(button => {
+                const id = button.id;
+                
+                switch(id) {
+                    case 'start-button':
+                        button.onclick = () => familyTreeApp.showPage('form');
+                        break;
+                    case 'import-button':
+                        button.onclick = () => document.getElementById('import-file').click();
+                        break;
+                    case 'cancel-button':
+                        button.onclick = () => {
+                            if (familyTreeApp.members.length > 0) {
+                                familyTreeApp.showPage('tree');
+                            } else {
+                                familyTreeApp.showPage('welcome');
+                            }
+                        };
+                        break;
+                    case 'reset-button':
+                        button.onclick = () => familyTreeApp.resetForm();
+                        break;
+                    case 'save-button':
+                        button.onclick = () => familyTreeApp.saveMember();
+                        break;
+                    case 'add-member-button':
+                        button.onclick = () => {
+                            familyTreeApp.resetForm();
+                            familyTreeApp.showPage('form');
+                        };
+                        break;
+                    case 'export-button':
+                        button.onclick = () => familyTreeApp.exportData();
+                        break;
+                    case 'back-to-tree-button':
+                        button.onclick = () => familyTreeApp.showPage('tree');
+                        break;
+                }
+            });
+        });
+    </script>
+</body>
+</html>
