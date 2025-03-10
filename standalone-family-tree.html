@@ -2143,17 +2143,17 @@
                 if (!units || units.length === 0) return [];
                 
                 const spacedUnits = [];
-                let currentX = startX - ((units.length - 1) * (boxWidth + siblingDistance)) / 2;
+                let totalWidth = units.length * (boxWidth + siblingDistance);
+                let currentX = startX - (totalWidth / 2) + (boxWidth / 2);
                 
-                // Position each unit and its children
+                // First, recursively position children, as their position affects parent placement
                 units.forEach(unit => {
-                    // Position children recursively first to know how wide they are
-                    let childrenPositioned = [];
+                    let childPositions = [];
                     if (unit.children && unit.children.length > 0) {
-                        childrenPositioned = this.layoutFamilyTree(
+                        childPositions = this.layoutFamilyTree(
                             unit.children, 
                             level + 1, 
-                            currentX, 
+                            currentX + (boxWidth + siblingDistance) / 2, 
                             startY, 
                             boxWidth, 
                             boxHeight, 
@@ -2162,46 +2162,72 @@
                         );
                     }
                     
-                    // Calculate the center X position based on children
+                    // Calculate unit position
                     let unitX = currentX;
-                    if (childrenPositioned.length > 0) {
-                        const leftMostChild = childrenPositioned[0];
-                        const rightMostChild = childrenPositioned[childrenPositioned.length - 1];
-                        const childrenCenter = (leftMostChild.x + rightMostChild.x) / 2;
-                        unitX = childrenCenter;
+                    
+                    // Center parent over children if they exist
+                    if (childPositions.length > 0) {
+                        // Find leftmost and rightmost child
+                        const leftChild = childPositions[0];
+                        const rightChild = childPositions[childPositions.length - 1];
+                        // Center over the children
+                        unitX = (leftChild.x + rightChild.x) / 2;
                     }
                     
-                    // Create a copy with position
+                    // Create positioned unit
                     const positionedUnit = {
                         ...unit,
                         x: unitX,
                         y: startY + level * levelHeight,
                         level: level,
-                        children: childrenPositioned
+                        children: childPositions,
+                        width: unit.parents.length > 1 ? (boxWidth * 2 + 40) : boxWidth
                     };
                     
                     spacedUnits.push(positionedUnit);
                     currentX += boxWidth + siblingDistance;
                 });
                 
-                // Adjust for overlaps
+                // Adjust units to prevent overlaps
                 for (let i = 1; i < spacedUnits.length; i++) {
                     const prevUnit = spacedUnits[i-1];
                     const currUnit = spacedUnits[i];
                     
-                    const minDistance = boxWidth + siblingDistance;
+                    // Calculate the minimum distance needed to prevent overlap
+                    const prevWidth = prevUnit.width || boxWidth;
+                    const currWidth = currUnit.width || boxWidth;
+                    
+                    const minDistance = (prevWidth / 2) + (currWidth / 2) + siblingDistance;
+                    
                     if (currUnit.x - prevUnit.x < minDistance) {
                         const shift = minDistance - (currUnit.x - prevUnit.x);
                         currUnit.x += shift;
                         
-                        // Shift all subsequent units
+                        // Also shift all subsequent units
                         for (let j = i + 1; j < spacedUnits.length; j++) {
                             spacedUnits[j].x += shift;
+                        }
+                        
+                        // Recursively shift child units as well
+                        if (currUnit.children && currUnit.children.length > 0) {
+                            this.shiftChildrenUnits(currUnit.children, shift);
                         }
                     }
                 }
                 
                 return spacedUnits;
+            },
+            
+            // Shift all children units recursively by a given amount
+            shiftChildrenUnits: function(units, shiftAmount) {
+                if (!units || units.length === 0) return;
+                
+                units.forEach(unit => {
+                    unit.x += shiftAmount;
+                    if (unit.children && unit.children.length > 0) {
+                        this.shiftChildrenUnits(unit.children, shiftAmount);
+                    }
+                });
             },
             
             // Draw family units recursively
@@ -2216,12 +2242,22 @@
                     if (unit.children && unit.children.length > 0) {
                         // Draw connection line down from this unit
                         const lineStartY = unit.y + boxHeight;
-                        const lineEndY = unit.children[0].y - 20; // Adjust based on your layout
+                        const lineEndY = unit.children[0].y - 20; // Space above children nodes
+                        
+                        // Determine center point for parent(s)
+                        let centerX = unit.x;
+                        if (unit.parents.length > 1) {
+                            // If two parents, connect from the middle of the couple
+                            centerX = unit.x;
+                        } else {
+                            // If single parent, connect from the center of the box
+                            centerX = unit.x;
+                        }
                         
                         // Vertical line down from parents
                         svg.append('path')
                             .attr('class', 'tree-link')
-                            .attr('d', `M${unit.x + boxWidth/2},${lineStartY} V${lineEndY}`);
+                            .attr('d', `M${centerX},${lineStartY} V${lineEndY}`);
                         
                         // Horizontal line connecting all children if more than one
                         if (unit.children.length > 1) {
@@ -2230,14 +2266,14 @@
                             
                             svg.append('path')
                                 .attr('class', 'tree-link')
-                                .attr('d', `M${leftMostChild.x + boxWidth/2},${lineEndY} H${rightMostChild.x + boxWidth/2}`);
+                                .attr('d', `M${leftMostChild.x},${lineEndY} H${rightMostChild.x}`);
                         }
                         
                         // Vertical lines to each child
                         unit.children.forEach(child => {
                             svg.append('path')
                                 .attr('class', 'tree-link')
-                                .attr('d', `M${child.x + boxWidth/2},${lineEndY} V${child.y}`);
+                                .attr('d', `M${child.x},${lineEndY} V${child.y}`);
                         });
                         
                         // Recursively draw children
@@ -2261,17 +2297,17 @@
                 if (parents.length === 1) {
                     // Single parent
                     const parent = parents[0];
-                    this.drawPersonNode(familyGroup, parent, boxWidth / 2, 0, boxWidth, boxHeight);
+                    this.drawPersonNode(familyGroup, parent, 0, 0, boxWidth, boxHeight);
                 } else if (parents.length === 2) {
                     // Two parents (marriage)
-                    const spacing = 20; // Space between spouses
+                    const spacing = 40; // Increased space between spouses
                     const totalWidth = boxWidth * 2 + spacing;
                     
                     // Draw first parent
                     this.drawPersonNode(
                         familyGroup, 
                         parents[0], 
-                        0, 
+                        -boxWidth - spacing/2, 
                         0, 
                         boxWidth, 
                         boxHeight
@@ -2281,7 +2317,7 @@
                     this.drawPersonNode(
                         familyGroup, 
                         parents[1], 
-                        boxWidth + spacing, 
+                        spacing/2, 
                         0, 
                         boxWidth, 
                         boxHeight
@@ -2290,7 +2326,7 @@
                     // Draw marriage line
                     familyGroup.append('path')
                         .attr('class', 'marriage-link')
-                        .attr('d', `M${boxWidth},${boxHeight/2} H${boxWidth + spacing}`);
+                        .attr('d', `M${-spacing/2},${boxHeight/2} H${spacing/2}`);
                 }
             },
             
@@ -2431,23 +2467,14 @@
                     // Adjust background width based on text length
                     const textWidth = dateText.length * 7 + 10; // rough estimate of text width
                     
-                    // Add white background for date text
-                    nodeGroup.append('rect')
-                        .attr('x', width / 2 - textWidth / 2)
-                        .attr('y', height + 10)
-                        .attr('width', textWidth)
-                        .attr('height', 20)
-                        .attr('rx', 4)
-                        .attr('fill', 'white')
-                        .attr('fill-opacity', 0.8)
-                        .attr('stroke', '#ccc')
-                        .attr('stroke-width', 1);
-                    
                     nodeGroup.append('text')
                         .attr('class', 'node-year-label')
                         .attr('x', width / 2)
                         .attr('y', height + 24)
                         .attr('fill', 'black')
+                        .attr('font-weight', 'normal')
+                        .attr('font-size', '12px')
+                        .attr('text-anchor', 'middle')
                         .text(dateText);
                 }
                 
