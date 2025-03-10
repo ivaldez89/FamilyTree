@@ -343,6 +343,22 @@
             <label for="birthplace" class="form-label">Birthplace</label>
             <input type="text" class="form-control" id="birthplace" />
           </div>
+
+          <!-- NEW FIELDS -->
+          <div class="mb-3">
+            <label for="currentCity" class="form-label">Current City</label>
+            <input type="text" class="form-control" id="currentCity" />
+          </div>
+          <div class="mb-3">
+            <label for="currentState" class="form-label">Current State</label>
+            <input type="text" class="form-control" id="currentState" />
+          </div>
+          <div class="mb-3">
+            <label for="socialMedia" class="form-label">Social Media Link</label>
+            <input type="text" class="form-control" id="socialMedia" />
+          </div>
+          <!-- END NEW FIELDS -->
+
           <div class="mb-3">
             <label for="occupation" class="form-label">Occupation</label>
             <input type="text" class="form-control" id="occupation" />
@@ -535,6 +551,11 @@
 
       // Keep track of selected nodes for "Find Relationship"
       selectedNodes: [],
+
+      // We'll store manually dragged positions in memory only (not in localStorage).
+      // If you want to persist them, you'd have to store them in the member object or
+      // a separate object and re-apply them next time you load the page.
+      manualPositions: {},
 
       // Pages
       pages: {
@@ -840,6 +861,12 @@
         const deathYear = document.getElementById('deathYear').value;
 
         const birthplace = document.getElementById('birthplace').value.trim();
+
+        // NEW FIELDS
+        const currentCity = document.getElementById('currentCity').value.trim();
+        const currentState = document.getElementById('currentState').value.trim();
+        const socialMedia = document.getElementById('socialMedia').value.trim();
+
         const occupation = document.getElementById('occupation').value.trim();
         const notes = document.getElementById('notes').value.trim();
 
@@ -858,13 +885,13 @@
           deathDay,
           deathYear,
           birthplace,
+          currentCity,
+          currentState,
+          socialMedia,
           occupation,
           notes,
           photo
         };
-
-        // Identify newly added relationships so we can auto-deduce
-        const newRelationships = [];
 
         // If editing existing
         const editingId = document.getElementById('save-button').dataset.editing;
@@ -920,54 +947,44 @@
 
         // Parent relationships
         parentItems.forEach((rel) => {
-          const obj = {
+          this.relationships.push({
             from: rel.id,
             to: member.id,
             type: 'parent',
             relationshipType: rel.type
-          };
-          this.relationships.push(obj);
-          newRelationships.push(obj); // We'll deduce from these
+          });
         });
 
         // Spouse relationships
         spouseItems.forEach((rel) => {
-          const obj = {
+          this.relationships.push({
             from: member.id,
             to: rel.id,
             type: 'spouse',
             relationshipType: rel.type
-          };
-          this.relationships.push(obj);
+          });
         });
 
         // Sibling relationships
         siblingItems.forEach((rel) => {
-          const obj = {
+          this.relationships.push({
             from: member.id,
             to: rel.id,
             type: 'sibling',
             relationshipType: rel.type
-          };
-          this.relationships.push(obj);
+          });
         });
 
         // Child relationships (parent->child)
         childItems.forEach((rel) => {
-          const obj = {
+          this.relationships.push({
             from: member.id,
             to: rel.id,
             type: 'parent',
             relationshipType: rel.type
-          };
-          this.relationships.push(obj);
-          newRelationships.push(obj); // We'll deduce from these
+          });
         });
 
-        // Deduce extra relationships
-        this.deduceExtendedRelationships(newRelationships);
-
-        // Save & re-render
         this.saveData();
         this.renderTree();
 
@@ -991,90 +1008,6 @@
           this.members[index] = member;
           this.saveData();
         }
-      },
-
-      // >>> NEW FUNCTION: deduceExtendedRelationships <<<
-      // This auto-adds the other parent if there's a spouse, and siblings if the parent has other children
-      deduceExtendedRelationships: function(newRelationships) {
-        newRelationships.forEach(rel => {
-          if (rel.type === 'parent') {
-            // "rel.from" = parentId, "rel.to" = childId
-            const parentId = rel.from;
-            const childId = rel.to;
-            const parentMember = this.members.find(m => m.id === parentId);
-            const childMember = this.members.find(m => m.id === childId);
-            if (!parentMember || !childMember) return;
-
-            // 1) Check parent's spouses
-            const spouses = this.relationships
-              .filter(r =>
-                ((r.from === parentId && r.type === 'spouse') ||
-                 (r.to === parentId && r.type === 'spouse'))
-              )
-              .map(r => (r.from === parentId ? r.to : r.from))
-              .map(spouseId => this.members.find(m => m.id === spouseId))
-              .filter(Boolean);
-
-            spouses.forEach(sp => {
-              // Check if that spouse is "married" or "partner" (adjust if you want "divorced" or "separated" to count)
-              const spRel = this.relationships.find(r =>
-                ((r.from === parentId && r.to === sp.id) ||
-                 (r.from === sp.id && r.to === parentId)) &&
-                r.type === 'spouse'
-              );
-              if (!spRel) return;
-              const spType = spRel.relationshipType || 'married';
-              if (['married','partner'].includes(spType)) {
-                // Add a parent link from spouse to child if not already
-                const alreadyParent = this.relationships.some(r =>
-                  r.from === sp.id && r.to === childId && r.type === 'parent'
-                );
-                if (!alreadyParent) {
-                  this.relationships.push({
-                    from: sp.id,
-                    to: childId,
-                    type: 'parent',
-                    relationshipType: rel.relationshipType // e.g. 'biological'
-                  });
-                }
-              }
-            });
-
-            // 2) Mark parent's other children as siblings
-            const parentChildrenIds = this.relationships
-              .filter(r => r.from === parentId && r.type === 'parent')
-              .map(r => r.to);
-
-            // Also spouse's children
-            spouses.forEach(sp => {
-              const spChildren = this.relationships
-                .filter(r => r.from === sp.id && r.type === 'parent')
-                .map(r => r.to);
-              spChildren.forEach(cid => {
-                if (!parentChildrenIds.includes(cid)) {
-                  parentChildrenIds.push(cid);
-                }
-              });
-            });
-
-            parentChildrenIds.forEach(siblingId => {
-              if (siblingId === childId) return;
-              const alreadySibling = this.relationships.some(r =>
-                ((r.from === childId && r.to === siblingId) ||
-                 (r.from === siblingId && r.to === childId)) &&
-                r.type === 'sibling'
-              );
-              if (!alreadySibling) {
-                this.relationships.push({
-                  from: childId,
-                  to: siblingId,
-                  type: 'sibling',
-                  relationshipType: 'full'
-                });
-              }
-            });
-          }
-        });
       },
 
       addRelationshipToForm: function (type, person, relationshipType) {
@@ -1171,6 +1104,12 @@
         document.getElementById('deathYear').value = member.deathYear || '';
 
         document.getElementById('birthplace').value = member.birthplace || '';
+
+        // new fields
+        document.getElementById('currentCity').value = member.currentCity || '';
+        document.getElementById('currentState').value = member.currentState || '';
+        document.getElementById('socialMedia').value = member.socialMedia || '';
+
         document.getElementById('occupation').value = member.occupation || '';
         document.getElementById('notes').value = member.notes || '';
 
@@ -1272,6 +1211,21 @@
               ${
                 member.birthplace
                   ? `<p><strong>Birthplace:</strong> ${member.birthplace}</p>`
+                  : ''
+              }
+              ${
+                member.currentCity
+                  ? `<p><strong>Current City:</strong> ${member.currentCity}</p>`
+                  : ''
+              }
+              ${
+                member.currentState
+                  ? `<p><strong>Current State:</strong> ${member.currentState}</p>`
+                  : ''
+              }
+              ${
+                member.socialMedia
+                  ? `<p><strong>Social Media:</strong> <a href="${member.socialMedia}" target="_blank">${member.socialMedia}</a></p>`
                   : ''
               }
               ${
@@ -1498,10 +1452,14 @@
       },
 
       toggleSelection: function (personId, circleElement) {
+        // Stop event from opening the profile
+        // (We do this in the circle's onClick, plus we placed the circle AFTER the rect in code)
         const index = this.selectedNodes.indexOf(personId);
         if (index === -1) {
           if (this.selectedNodes.length >= 2) {
-            this.selectedNodes.shift();
+            // If 2 are already selected, remove the oldest
+            const removed = this.selectedNodes.shift();
+            // If you want to unhighlight that old circle, you'd have to track it. We'll skip for brevity
           }
           this.selectedNodes.push(personId);
           circleElement.attr('fill', 'yellow');
@@ -1715,7 +1673,7 @@
         const boxWidth = 120;
         const boxHeight = 40;
         const levelHeight = 120;
-        const siblingDistance = 60; /* Increased to reduce overlap */
+        const siblingDistance = 60; /* Increased spacing to reduce overlap */
 
         const svg = d3
           .select(container)
@@ -1807,10 +1765,12 @@
       },
 
       findRootMembers: function () {
+        // People who have no "parent" pointing to them become root
         let rootMembers = this.members.filter(
           (member) =>
             !this.relationships.some((r) => r.to === member.id && r.type === 'parent')
         );
+        // If none found, pick oldest or so
         if (rootMembers.length === 0 && this.members.length > 0) {
           const sortedMembers = [...this.members].sort((a, b) => {
             const yearA = a.birthYear ? parseInt(a.birthYear) : 9999;
@@ -1829,453 +1789,4 @@
           const children1 = this.relationships
             .filter((r) => r.from === parent1Id && r.type === 'parent')
             .map((r) => r.to);
-          const children2 = this.relationships
-            .filter((r) => r.from === parent2Id && r.type === 'parent')
-            .map((r) => r.to);
-          childrenIds = children1.filter((id) => children2.includes(id));
-          if (childrenIds.length === 0) {
-            childrenIds = children1;
-          }
-        } else {
-          childrenIds = this.relationships
-            .filter((r) => r.from === parent1Id && r.type === 'parent')
-            .map((r) => r.to);
-        }
-        if (childrenIds.length === 0) return [];
-        const childrenUnits = [];
-
-        childrenIds.forEach((childId) => {
-          if (processedMembers.has(childId)) return;
-          processedMembers.add(childId);
-
-          const child = this.members.find((m) => m.id === childId);
-          if (!child) return;
-
-          const spouses = this.getSpouses(childId);
-          if (spouses.length === 0) {
-            const childUnit = {
-              id: `unit_${childId}`,
-              parents: [child],
-              children: this.buildChildrenUnits(childId, null, processedMembers)
-            };
-            childrenUnits.push(childUnit);
-          } else {
-            spouses.forEach((spouse) => {
-              if (processedMembers.has(spouse.id)) return;
-              processedMembers.add(spouse.id);
-              const childUnit = {
-                id: `unit_${childId}_${spouse.id}`,
-                parents: [child, spouse],
-                children: this.buildChildrenUnits(childId, spouse.id, processedMembers)
-              };
-              childrenUnits.push(childUnit);
-            });
-          }
-        });
-        return childrenUnits;
-      },
-
-      layoutFamilyTree: function (
-        units,
-        level,
-        startX,
-        startY,
-        boxWidth,
-        boxHeight,
-        levelHeight,
-        siblingDistance
-      ) {
-        if (!units || units.length === 0) return [];
-        const spacedUnits = [];
-        let totalWidth = units.length * (boxWidth + siblingDistance);
-        let currentX = startX - totalWidth / 2 + boxWidth / 2;
-
-        units.forEach((unit) => {
-          let childPositions = [];
-          if (unit.children && unit.children.length > 0) {
-            childPositions = this.layoutFamilyTree(
-              unit.children,
-              level + 1,
-              currentX + (boxWidth + siblingDistance) / 2,
-              startY,
-              boxWidth,
-              boxHeight,
-              levelHeight,
-              siblingDistance
-            );
-          }
-          let unitX = currentX;
-          if (childPositions.length > 0) {
-            const leftChild = childPositions[0];
-            const rightChild = childPositions[childPositions.length - 1];
-            unitX = (leftChild.x + rightChild.x) / 2;
-          }
-          const positionedUnit = {
-            ...unit,
-            x: unitX,
-            y: startY + level * levelHeight,
-            level: level,
-            children: childPositions,
-            width: unit.parents.length > 1 ? boxWidth * 2 + 40 : boxWidth
-          };
-          spacedUnits.push(positionedUnit);
-          currentX += boxWidth + siblingDistance;
-        });
-
-        for (let i = 1; i < spacedUnits.length; i++) {
-          const prevUnit = spacedUnits[i - 1];
-          const currUnit = spacedUnits[i];
-          const prevWidth = prevUnit.width || boxWidth;
-          const currWidth = currUnit.width || boxWidth;
-          const minDistance = prevWidth / 2 + currWidth / 2 + siblingDistance;
-          if (currUnit.x - prevUnit.x < minDistance) {
-            const shift = minDistance - (currUnit.x - prevUnit.x);
-            currUnit.x += shift;
-            for (let j = i + 1; j < spacedUnits.length; j++) {
-              spacedUnits[j].x += shift;
-            }
-            if (currUnit.children && currUnit.children.length > 0) {
-              this.shiftChildrenUnits(currUnit.children, shift);
-            }
-          }
-        }
-        return spacedUnits;
-      },
-
-      shiftChildrenUnits: function (units, shiftAmount) {
-        if (!units || units.length === 0) return;
-        units.forEach((unit) => {
-          unit.x += shiftAmount;
-          if (unit.children && unit.children.length > 0) {
-            this.shiftChildrenUnits(unit.children, shiftAmount);
-          }
-        });
-      },
-
-      drawFamilyUnits: function (svg, units, boxWidth, boxHeight) {
-        if (!units || units.length === 0) return;
-        units.forEach((unit) => {
-          this.drawFamilyUnit(svg, unit, boxWidth, boxHeight);
-          if (unit.children && unit.children.length > 0) {
-            const lineStartY = unit.y + boxHeight;
-            const lineEndY = unit.children[0].y - 20;
-            let centerX = unit.x;
-
-            svg
-              .append('path')
-              .attr('class', 'tree-link')
-              .attr('d', `M${centerX},${lineStartY} V${lineEndY}`);
-
-            if (unit.children.length > 1) {
-              const leftMostChild = unit.children[0];
-              const rightMostChild = unit.children[unit.children.length - 1];
-              svg
-                .append('path')
-                .attr('class', 'tree-link')
-                .attr('d', `M${leftMostChild.x},${lineEndY} H${rightMostChild.x}`);
-            }
-
-            unit.children.forEach((child) => {
-              svg
-                .append('path')
-                .attr('class', 'tree-link')
-                .attr('d', `M${child.x},${lineEndY} V${child.y}`);
-            });
-
-            this.drawFamilyUnits(svg, unit.children, boxWidth, boxHeight);
-          }
-        });
-      },
-
-      drawFamilyUnit: function (svg, unit, boxWidth, boxHeight) {
-        const parents = unit.parents;
-        if (parents.length === 0) return;
-        const familyGroup = svg
-          .append('g')
-          .attr('class', 'family-unit')
-          .attr('transform', `translate(${unit.x},${unit.y})`);
-
-        if (parents.length === 1) {
-          this.drawPersonNode(familyGroup, parents[0], 0, 0, boxWidth, boxHeight);
-        } else if (parents.length === 2) {
-          const spacing = 40;
-          this.drawPersonNode(
-            familyGroup,
-            parents[0],
-            -boxWidth - spacing / 2,
-            0,
-            boxWidth,
-            boxHeight
-          );
-          this.drawPersonNode(
-            familyGroup,
-            parents[1],
-            spacing / 2,
-            0,
-            boxWidth,
-            boxHeight
-          );
-          familyGroup
-            .append('path')
-            .attr('class', 'marriage-link')
-            .attr('d', `M${-spacing / 2},${boxHeight / 2} H${spacing / 2}`);
-        }
-      },
-
-      drawPersonNode: function (group, person, x, y, width, height) {
-        const nodeGroup = group
-          .append('g')
-          .attr('class', 'family-node')
-          .attr('transform', `translate(${x},${y})`)
-          .attr('data-id', person.id);
-
-        if (person.gender === 'male') {
-          nodeGroup
-            .append('rect')
-            .attr('width', width)
-            .attr('height', height)
-            .attr('rx', 5)
-            .attr('fill', 'white')
-            .attr('stroke', '#4A89DC')
-            .attr('stroke-width', 1);
-          nodeGroup
-            .append('rect')
-            .attr('class', 'node-male')
-            .attr('width', width)
-            .attr('height', height)
-            .attr('rx', 5)
-            .attr('fill-opacity', 0.8);
-        } else if (person.gender === 'female') {
-          nodeGroup
-            .append('ellipse')
-            .attr('cx', width / 2)
-            .attr('cy', height / 2)
-            .attr('rx', width / 2)
-            .attr('ry', height / 2)
-            .attr('fill', 'white')
-            .attr('stroke', '#D770AD')
-            .attr('stroke-width', 1);
-          nodeGroup
-            .append('ellipse')
-            .attr('class', 'node-female')
-            .attr('cx', width / 2)
-            .attr('cy', height / 2)
-            .attr('rx', width / 2)
-            .attr('ry', height / 2)
-            .attr('fill-opacity', 0.8);
-        } else {
-          nodeGroup
-            .append('polygon')
-            .attr(
-              'points',
-              `${width / 2},0 ${width},${height / 2} ${width / 2},${height} 0,${height / 2}`
-            )
-            .attr('fill', 'white')
-            .attr('stroke', '#656D78')
-            .attr('stroke-width', 1);
-          nodeGroup
-            .append('polygon')
-            .attr('class', 'node-unknown')
-            .attr(
-              'points',
-              `${width / 2},0 ${width},${height / 2} ${width / 2},${height} 0,${height / 2}`
-            )
-            .attr('fill-opacity', 0.8);
-        }
-
-        if (person.photo) {
-          const clipId = `clip-${person.id}`;
-          const defs = group.append('defs');
-          const clipPath = defs.append('clipPath').attr('id', clipId);
-
-          if (person.gender === 'male') {
-            clipPath
-              .append('rect')
-              .attr('x', width / 2 - 25)
-              .attr('y', -30)
-              .attr('width', 50)
-              .attr('height', 50)
-              .attr('rx', 5);
-          } else {
-            clipPath
-              .append('circle')
-              .attr('cx', width / 2)
-              .attr('cy', -15)
-              .attr('r', 25);
-          }
-
-          nodeGroup
-            .append('rect')
-            .attr('x', width / 2 - 28)
-            .attr('y', -33)
-            .attr('width', 56)
-            .attr('height', 56)
-            .attr('rx', 28)
-            .attr('fill', 'white')
-            .attr('stroke', '#ccc')
-            .attr('stroke-width', 2);
-
-          nodeGroup
-            .append('image')
-            .attr('x', width / 2 - 25)
-            .attr('y', -30)
-            .attr('width', 50)
-            .attr('height', 50)
-            .attr('clip-path', `url(#${clipId})`)
-            .attr('xlink:href', person.photo);
-        }
-
-        nodeGroup
-          .append('text')
-          .attr('x', width / 2)
-          .attr('y', height / 2 + 5)
-          .attr('text-anchor', 'middle')
-          .attr('fill', 'black')
-          .attr('font-weight', 'bold')
-          .attr('font-size', '14px')
-          .text(this.getShortName(person));
-
-        if (person.birthMonth || person.birthDay || person.birthYear) {
-          let dateText = this.formatDateString(
-            person.birthMonth,
-            person.birthDay,
-            person.birthYear
-          );
-          if (person.deathMonth || person.deathDay || person.deathYear) {
-            dateText +=
-              ' - ' +
-              this.formatDateString(person.deathMonth, person.deathDay, person.deathYear);
-          }
-          nodeGroup
-            .append('text')
-            .attr('class', 'node-year-label')
-            .attr('x', width / 2)
-            .attr('y', height + 24)
-            .attr('fill', '#00008B')
-            .attr('font-weight', 'normal')
-            .attr('font-size', '12px')
-            .attr('text-anchor', 'middle')
-            .text(dateText);
-        }
-
-        // selection circle (top-left)
-        const selectCircle = nodeGroup
-          .append('circle')
-          .attr('class', 'select-circle')
-          .attr('cx', 10)
-          .attr('cy', 10)
-          .attr('r', 8)
-          .attr('fill', 'white')
-          .attr('stroke', 'black')
-          .attr('stroke-width', 1)
-          .style('cursor', 'pointer')
-          .on('click', (event) => {
-            event.stopPropagation();
-            this.toggleSelection(person.id, selectCircle);
-          });
-
-        // transparent rect for clicking to open profile
-        nodeGroup
-          .append('rect')
-          .attr('width', width)
-          .attr('height', height)
-          .attr('fill', 'transparent')
-          .style('cursor', 'pointer')
-          .on('click', (event) => {
-            this.showProfile(person);
-          });
-
-        // delete X (top-right)
-        nodeGroup
-          .append('text')
-          .attr('class', 'delete-button')
-          .attr('x', width - 10)
-          .attr('y', 14)
-          .attr('text-anchor', 'middle')
-          .attr('fill', '#e74c3c')
-          .attr('font-weight', 'bold')
-          .attr('font-size', '16px')
-          .style('cursor', 'pointer')
-          .text('×')
-          .on('click', (event) => {
-            event.stopPropagation();
-            if (confirm('Are you sure you want to delete this person?')) {
-              this.deleteMember(person.id);
-            }
-          });
-      },
-
-      formatDateString: function (month, day, year) {
-        let parts = [];
-        if (month) {
-          const monthNames = [
-            'Jan',
-            'Feb',
-            'Mar',
-            'Apr',
-            'May',
-            'Jun',
-            'Jul',
-            'Aug',
-            'Sep',
-            'Oct',
-            'Nov',
-            'Dec'
-          ];
-          parts.push(monthNames[parseInt(month) - 1]);
-        }
-        if (day) parts.push(day);
-        if (year) parts.push(year);
-        return parts.join(' ');
-      },
-
-      deleteMember: function (memberId) {
-        const index = this.members.findIndex((m) => m.id === memberId);
-        if (index === -1) return;
-        this.members.splice(index, 1);
-        this.relationships = this.relationships.filter(
-          (r) => r.from !== memberId && r.to !== memberId
-        );
-        this.saveData();
-        this.populateMemberSelectors();
-        this.renderTree();
-      },
-
-      getShortName: function (member) {
-        if (!member) return '';
-        return member.firstName || member.lastName || 'Unnamed';
-      },
-
-      centerTree: function () {
-        const svg = d3.select('#tree-container svg');
-        const container = document.getElementById('tree-container');
-        if (!svg.empty() && container) {
-          const zoom = d3.zoom();
-          const g = svg.select('g');
-          if (!g.empty()) {
-            const bounds = g.node().getBBox();
-            const width = container.clientWidth;
-            const height = container.clientHeight;
-            const centerX = bounds.x + bounds.width / 2;
-            const centerY = bounds.y + bounds.height / 2;
-            const scale = 0.9 / Math.max(bounds.width / width, bounds.height / height);
-            const translate = [
-              width / 2 - scale * centerX,
-              height / 2 - scale * centerY
-            ];
-            this.zoomLevel = scale;
-            svg.call(
-              zoom.transform,
-              d3.zoomIdentity.translate(translate[0], translate[1]).scale(scale)
-            );
-          }
-        }
-      }
-    };
-
-    document.addEventListener('DOMContentLoaded', function () {
-      familyTreeApp.init();
-    });
-  </script>
-</body>
-</html>
+          const children
