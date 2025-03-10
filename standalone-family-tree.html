@@ -1784,9 +1784,50 @@
       },
 
       buildChildrenUnits: function (parent1Id, parent2Id, processedMembers) {
-        let childrenIds;
-        if (parent2Id) {
-          const children1 = this.relationships
-            .filter((r) => r.from === parent1Id && r.type === 'parent')
-            .map((r) => r.to);
-          const children
+  let childrenIds;
+  if (parent2Id) {
+    const children1 = this.relationships
+      .filter((r) => r.from === parent1Id && r.type === 'parent')
+      .map((r) => r.to);
+    const children2 = this.relationships
+      .filter((r) => r.from === parent2Id && r.type === 'parent')
+      .map((r) => r.to);
+    childrenIds = children1.filter((id) => children2.includes(id));
+    if (childrenIds.length === 0) {
+      childrenIds = children1;
+    }
+  } else {
+    childrenIds = this.relationships
+      .filter((r) => r.from === parent1Id && r.type === 'parent')
+      .map((r) => r.to);
+  }
+  if (childrenIds.length === 0) return [];
+  const childrenUnits = [];
+  childrenIds.forEach((childId) => {
+    if (processedMembers.has(childId)) return;
+    processedMembers.add(childId);
+    const child = this.members.find((m) => m.id === childId);
+    if (!child) return;
+    const spouses = this.getSpouses(childId);
+    if (spouses.length === 0) {
+      const childUnit = {
+        id: `unit_${childId}`,
+        parents: [child],
+        children: this.buildChildrenUnits(childId, null, processedMembers)
+      };
+      childrenUnits.push(childUnit);
+    } else {
+      spouses.forEach((spouse) => {
+        if (processedMembers.has(spouse.id)) return;
+        processedMembers.add(spouse.id);
+        const childUnit = {
+          id: `unit_${childId}_${spouse.id}`,
+          parents: [child, spouse],
+          children: this.buildChildrenUnits(childId, spouse.id, processedMembers)
+        };
+        childrenUnits.push(childUnit);
+      });
+    }
+  });
+  return childrenUnits;
+},
