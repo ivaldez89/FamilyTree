@@ -1897,205 +1897,21 @@
                 return null;
             },
             
-            // Build family tree data structure
+            // LEGACY: Old tree building method - no longer used, replaced by buildTreeData
             buildFamilyTreeData: function() {
-                if (this.members.length === 0) return null;
-                
-                // Create a map to deduplicate members
-                const processedMembers = new Map();
-                
-                // Find people without parents (root nodes)
-                const rootMemberIds = this.members
-                    .filter(member => {
-                        return !this.relationships.some(r => r.to === member.id && r.type === 'parent');
-                    })
-                    .map(member => member.id);
-                
-                if (rootMemberIds.length === 0 && this.members.length > 0) {
-                    // If there are no clear root nodes but we have members,
-                    // take the oldest members (by birth year) as roots
-                    const sortedMembers = [...this.members].sort((a, b) => {
-                        const yearA = a.birthYear ? parseInt(a.birthYear) : 9999;
-                        const yearB = b.birthYear ? parseInt(b.birthYear) : 9999;
-                        return yearA - yearB;
-                    });
-                    
-                    // Take the oldest 5% or at least one
-                    const numRoots = Math.max(1, Math.ceil(sortedMembers.length * 0.05));
-                    return sortedMembers.slice(0, numRoots).map(member => member.id);
-                }
-                
-                // Process each root node to create family units
-                const familyUnits = [];
-                
-                rootMemberIds.forEach(rootId => {
-                    // Get the root person
-                    const rootPerson = this.members.find(m => m.id === rootId);
-                    
-                    // Find all spouses of the root person
-                    const spouseIds = this.relationships
-                        .filter(r => (r.from === rootId || r.to === rootId) && r.type === 'spouse')
-                        .map(r => r.from === rootId ? r.to : r.from);
-                    
-                    if (spouseIds.length === 0) {
-                        // Person without spouse
-                        const familyUnit = {
-                            id: `family_${rootId}`,
-                            parents: [rootPerson],
-                            children: this.getChildrenFamilyUnits(rootId, processedMembers)
-                        };
-                        
-                        familyUnits.push(familyUnit);
-                    } else {
-                        // Process each marriage
-                        spouseIds.forEach(spouseId => {
-                            const spouse = this.members.find(m => m.id === spouseId);
-                            
-                            // Find children from this marriage
-                            const childrenUnits = this.getCommonChildrenFamilyUnits(rootId, spouseId, processedMembers);
-                            
-                            const familyUnit = {
-                                id: `family_${rootId}_${spouseId}`,
-                                parents: [rootPerson, spouse],
-                                children: childrenUnits
-                            };
-                            
-                            familyUnits.push(familyUnit);
-                        });
-                    }
-                });
-                
-                return familyUnits;
+                return this.buildTreeData();
             },
             
-            // Get children of a person as family units
-            getChildrenFamilyUnits: function(parentId, processedMembers = new Map()) {
-                // Prevent duplicate processing
-                if (processedMembers.has(parentId)) {
-                    return [];
-                }
-                
-                processedMembers.set(parentId, true);
-                
-                // Find all children of this parent
-                const childrenIds = this.relationships
-                    .filter(r => r.from === parentId && r.type === 'parent')
-                    .map(r => r.to);
-                
-                if (childrenIds.length === 0) return [];
-                
-                const childrenUnits = [];
-                
-                // Process each child
-                childrenIds.forEach(childId => {
-                    // Skip if this child has already been processed
-                    if (processedMembers.has(childId)) return;
-                    
-                    const child = this.members.find(m => m.id === childId);
-                    
-                    // Find all spouses of this child
-                    const spouseIds = this.relationships
-                        .filter(r => (r.from === childId || r.to === childId) && r.type === 'spouse')
-                        .map(r => r.from === childId ? r.to : r.from);
-                    
-                    if (spouseIds.length === 0) {
-                        // Child without spouse
-                        const childUnit = {
-                            id: `family_${childId}`,
-                            parents: [child],
-                            children: this.getChildrenFamilyUnits(childId, processedMembers)
-                        };
-                        
-                        childrenUnits.push(childUnit);
-                    } else {
-                        // Process each marriage of the child
-                        spouseIds.forEach(spouseId => {
-                            const spouse = this.members.find(m => m.id === spouseId);
-                            
-                            // Find children from this marriage
-                            const grandchildrenUnits = this.getCommonChildrenFamilyUnits(childId, spouseId, processedMembers);
-                            
-                            const childUnit = {
-                                id: `family_${childId}_${spouseId}`,
-                                parents: [child, spouse],
-                                children: grandchildrenUnits
-                            };
-                            
-                            childrenUnits.push(childUnit);
-                        });
-                    }
-                });
-                
-                return childrenUnits;
+            // LEGACY: Old methods - no longer used, replaced by buildTreeData and buildChildrenUnits
+            getChildrenFamilyUnits: function(parentId, processedMembers = new Set()) {
+                return [];
             },
             
-            // Get common children of two parents as family units
-            getCommonChildrenFamilyUnits: function(parent1Id, parent2Id, processedMembers = new Map()) {
-                // Find children with both parents
-                const children1 = this.relationships
-                    .filter(r => r.from === parent1Id && r.type === 'parent')
-                    .map(r => r.to);
-                
-                const children2 = this.relationships
-                    .filter(r => r.from === parent2Id && r.type === 'parent')
-                    .map(r => r.to);
-                
-                // Find intersection (common children)
-                const commonChildrenIds = children1.filter(id => children2.includes(id));
-                
-                // If no common children, check for all children of parent1
-                const allChildrenIds = commonChildrenIds.length > 0 ? commonChildrenIds : children1;
-                
-                if (allChildrenIds.length === 0) return [];
-                
-                const childrenUnits = [];
-                
-                // Process each child
-                allChildrenIds.forEach(childId => {
-                    // Skip if this child has already been processed
-                    if (processedMembers.has(childId)) return;
-                    
-                    processedMembers.set(childId, true);
-                    
-                    const child = this.members.find(m => m.id === childId);
-                    
-                    // Find all spouses of this child
-                    const spouseIds = this.relationships
-                        .filter(r => (r.from === childId || r.to === childId) && r.type === 'spouse')
-                        .map(r => r.from === childId ? r.to : r.from);
-                    
-                    if (spouseIds.length === 0) {
-                        // Child without spouse
-                        const childUnit = {
-                            id: `family_${childId}`,
-                            parents: [child],
-                            children: this.getChildrenFamilyUnits(childId, processedMembers)
-                        };
-                        
-                        childrenUnits.push(childUnit);
-                    } else {
-                        // Process each marriage of the child
-                        spouseIds.forEach(spouseId => {
-                            const spouse = this.members.find(m => m.id === spouseId);
-                            
-                            // Find children from this marriage
-                            const grandchildrenUnits = this.getCommonChildrenFamilyUnits(childId, spouseId, processedMembers);
-                            
-                            const childUnit = {
-                                id: `family_${childId}_${spouseId}`,
-                                parents: [child, spouse],
-                                children: grandchildrenUnits
-                            };
-                            
-                            childrenUnits.push(childUnit);
-                        });
-                    }
-                });
-                
-                return childrenUnits;
+            getCommonChildrenFamilyUnits: function(parent1Id, parent2Id, processedMembers = new Set()) {
+                return [];
             },
             
-            // Render the family tree
+            // Renders the family tree visualization
             renderTree: function(forceReorganize = false) {
                 const container = document.getElementById('tree-container');
                 container.innerHTML = '';
@@ -2143,10 +1959,13 @@
                 // Create main group for zooming
                 const g = svg.append('g');
                 
-                // Get tree data
-                const familyUnits = this.buildFamilyTreeData();
+                // Global tracking of processed members to prevent duplicates
+                this.processedMemberIds = new Set();
                 
-                if (!familyUnits || familyUnits.length === 0) {
+                // Get tree data - build a hierarchy from relationship data
+                const treeData = this.buildTreeData();
+                
+                if (!treeData || treeData.length === 0) {
                     container.innerHTML = `
                         <div class="d-flex flex-column align-items-center justify-content-center h-100">
                             <h3 class="text-muted mb-4">Could not create family tree structure</h3>
@@ -2157,7 +1976,7 @@
                 }
                 
                 // Calculate positions
-                const rootUnits = this.layoutFamilyTree(familyUnits, 0, width / 2, 0, boxWidth, boxHeight, levelHeight, siblingDistance);
+                const rootUnits = this.layoutFamilyTree(treeData, 0, width / 2, 0, boxWidth, boxHeight, levelHeight, siblingDistance);
                 
                 // Draw units recursively
                 this.drawFamilyUnits(g, rootUnits, boxWidth, boxHeight);
@@ -2175,6 +1994,148 @@
                 svg.call(zoom.transform, d3.zoomIdentity
                     .translate(translate[0], translate[1])
                     .scale(scale));
+            },
+            
+            // New method to build a clean tree structure without duplicates
+            buildTreeData: function() {
+                if (this.members.length === 0) return [];
+                
+                // Track processed members to prevent duplicates
+                const processedMembers = new Set();
+                
+                // Find root people (without parents or with the oldest birth years)
+                let rootMembers = this.findRootMembers();
+                
+                // Build the tree units
+                const treeUnits = [];
+                
+                // Process each root to create family units
+                rootMembers.forEach(rootMember => {
+                    if (processedMembers.has(rootMember.id)) return;
+                    processedMembers.add(rootMember.id);
+                    
+                    // Get spouses
+                    const spouses = this.getSpouses(rootMember.id);
+                    
+                    if (spouses.length === 0) {
+                        // Solo person
+                        const familyUnit = {
+                            id: `unit_${rootMember.id}`,
+                            parents: [rootMember],
+                            children: this.buildChildrenUnits(rootMember.id, null, processedMembers)
+                        };
+                        treeUnits.push(familyUnit);
+                    } else {
+                        // Process each partnership
+                        spouses.forEach(spouse => {
+                            if (processedMembers.has(spouse.id)) return;
+                            processedMembers.add(spouse.id);
+                            
+                            const familyUnit = {
+                                id: `unit_${rootMember.id}_${spouse.id}`,
+                                parents: [rootMember, spouse],
+                                children: this.buildChildrenUnits(rootMember.id, spouse.id, processedMembers)
+                            };
+                            treeUnits.push(familyUnit);
+                        });
+                    }
+                });
+                
+                return treeUnits;
+            },
+            
+            // Find root members for the tree
+            findRootMembers: function() {
+                // First try to find people without parents
+                let rootMembers = this.members.filter(member => {
+                    return !this.relationships.some(r => r.to === member.id && r.type === 'parent');
+                });
+                
+                // If no clear roots, use oldest members
+                if (rootMembers.length === 0 && this.members.length > 0) {
+                    const sortedMembers = [...this.members].sort((a, b) => {
+                        const yearA = a.birthYear ? parseInt(a.birthYear) : 9999;
+                        const yearB = b.birthYear ? parseInt(b.birthYear) : 9999;
+                        return yearA - yearB;
+                    });
+                    
+                    const numRoots = Math.max(1, Math.ceil(sortedMembers.length * 0.05));
+                    rootMembers = sortedMembers.slice(0, numRoots);
+                }
+                
+                return rootMembers;
+            },
+            
+            // Build children units with deduplication
+            buildChildrenUnits: function(parent1Id, parent2Id, processedMembers) {
+                // Find the children
+                let childrenIds;
+                
+                if (parent2Id) {
+                    // Find common children of both parents
+                    const children1 = this.relationships
+                        .filter(r => r.from === parent1Id && r.type === 'parent')
+                        .map(r => r.to);
+                    
+                    const children2 = this.relationships
+                        .filter(r => r.from === parent2Id && r.type === 'parent')
+                        .map(r => r.to);
+                    
+                    childrenIds = children1.filter(id => children2.includes(id));
+                    
+                    // If no common children, use parent1's children
+                    if (childrenIds.length === 0) {
+                        childrenIds = children1;
+                    }
+                } else {
+                    // Get all children of the single parent
+                    childrenIds = this.relationships
+                        .filter(r => r.from === parent1Id && r.type === 'parent')
+                        .map(r => r.to);
+                }
+                
+                if (childrenIds.length === 0) return [];
+                
+                const childrenUnits = [];
+                
+                // Process each child
+                childrenIds.forEach(childId => {
+                    // Skip if this child has already been processed
+                    if (processedMembers.has(childId)) return;
+                    processedMembers.add(childId);
+                    
+                    const child = this.members.find(m => m.id === childId);
+                    if (!child) return;
+                    
+                    // Get child's spouses
+                    const spouses = this.getSpouses(childId);
+                    
+                    if (spouses.length === 0) {
+                        // Child without spouse
+                        const childUnit = {
+                            id: `unit_${childId}`,
+                            parents: [child],
+                            children: this.buildChildrenUnits(childId, null, processedMembers)
+                        };
+                        childrenUnits.push(childUnit);
+                    } else {
+                        // For each spouse, create a family unit
+                        spouses.forEach(spouse => {
+                            // Skip if this spouse has already been processed
+                            if (processedMembers.has(spouse.id)) return;
+                            processedMembers.add(spouse.id);
+                            
+                            const childUnit = {
+                                id: `unit_${childId}_${spouse.id}`,
+                                parents: [child, spouse],
+                                children: this.buildChildrenUnits(childId, spouse.id, processedMembers)
+                            };
+                            childrenUnits.push(childUnit);
+                        });
+                    }
+                });
+                
+                return childrenUnits;
             },
             
             // Layout family tree by calculating positions
