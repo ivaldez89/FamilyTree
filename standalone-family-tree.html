@@ -499,8 +499,6 @@
       </div>
     </div>
 
-    <!-- No more magnifying glass buttons or floating plus button -->
-
     <div id="tree-container" class="tree-container with-header">
       <!-- Family tree will be rendered here -->
     </div>
@@ -558,7 +556,6 @@
         }
       },
 
-      // Setup day selectors
       setupDaySelectors: function () {
         const populateDays = (monthSelector, daySelector) => {
           monthSelector.addEventListener('change', () => {
@@ -568,12 +565,11 @@
               daySelect.remove(1);
             }
             if (!month) return;
-
             let daysInMonth;
             if ([4, 6, 9, 11].includes(month)) {
               daysInMonth = 30;
             } else if (month === 2) {
-              daysInMonth = 29; // We'll just use 29 for February
+              daysInMonth = 29; 
             } else {
               daysInMonth = 31;
             }
@@ -585,17 +581,10 @@
             }
           });
         };
-        const birthMonth = document.getElementById('birthMonth');
-        if (birthMonth) {
-          populateDays(birthMonth, 'birthDay');
-        }
-        const deathMonth = document.getElementById('deathMonth');
-        if (deathMonth) {
-          populateDays(deathMonth, 'deathDay');
-        }
+        populateDays(document.getElementById('birthMonth'), 'birthDay');
+        populateDays(document.getElementById('deathMonth'), 'deathDay');
       },
 
-      // Load from localStorage
       loadData: function () {
         try {
           const membersData = localStorage.getItem('familyTreeMembers');
@@ -613,11 +602,13 @@
         }
       },
 
-      // Save to localStorage
       saveData: function () {
         try {
           localStorage.setItem('familyTreeMembers', JSON.stringify(this.members));
-          localStorage.setItem('familyTreeRelationships', JSON.stringify(this.relationships));
+          localStorage.setItem(
+            'familyTreeRelationships',
+            JSON.stringify(this.relationships)
+          );
           const saveNotice = document.getElementById('save-notice');
           saveNotice.classList.add('show');
           setTimeout(() => {
@@ -631,7 +622,6 @@
         }
       },
 
-      // Export data
       exportData: function () {
         const data = {
           members: this.members,
@@ -650,7 +640,6 @@
         URL.revokeObjectURL(url);
       },
 
-      // Import data
       importData: function (jsonData) {
         try {
           const data = JSON.parse(jsonData);
@@ -673,7 +662,6 @@
         return false;
       },
 
-      // Event listeners
       setupEventListeners: function () {
         document.getElementById('start-button').addEventListener('click', () => {
           this.showPage('form');
@@ -818,7 +806,6 @@
         });
       },
 
-      // Show a page
       showPage: function (pageName) {
         Object.values(this.pages).forEach((page) => page.classList.remove('active'));
         if (this.pages[pageName]) {
@@ -838,7 +825,6 @@
         document.getElementById('save-button').dataset.editing = '';
       },
 
-      // Save new or update existing
       saveMember: function () {
         const firstName = document.getElementById('firstName').value.trim();
         const middleName = document.getElementById('middleName').value.trim();
@@ -877,6 +863,36 @@
           photo
         };
 
+        // Identify newly added relationships so we can auto-deduce
+        const newRelationships = [];
+
+        // If editing existing
+        const editingId = document.getElementById('save-button').dataset.editing;
+        if (editingId) {
+          member.id = editingId;
+          this.updateMember(member);
+
+          // Remove old relationships for that ID so we can re-add
+          this.relationships = this.relationships.filter(
+            (r) =>
+              !(
+                (r.from === editingId &&
+                  (r.type === 'parent' ||
+                    r.type === 'child' ||
+                    r.type === 'sibling')) ||
+                (r.to === editingId &&
+                  (r.type === 'parent' ||
+                    r.type === 'child' ||
+                    r.type === 'sibling')) ||
+                ((r.from === editingId || r.to === editingId) && r.type === 'spouse')
+              )
+          );
+        } else {
+          member.id = this.generateUniqueId();
+          this.members.push(member);
+        }
+
+        // Collect new relationships from the form
         const parentItems = Array.from(
           document.querySelectorAll('#parentsList [data-id]')
         ).map((el) => ({
@@ -902,64 +918,59 @@
           type: el.dataset.relationshipType || 'biological'
         }));
 
-        const editingId = document.getElementById('save-button').dataset.editing;
-
-        if (editingId) {
-          member.id = editingId;
-          this.updateMember(member);
-          this.relationships = this.relationships.filter(
-            (r) =>
-              !(
-                (r.from === editingId &&
-                  (r.type === 'parent' ||
-                    r.type === 'child' ||
-                    r.type === 'sibling')) ||
-                (r.to === editingId &&
-                  (r.type === 'parent' ||
-                    r.type === 'child' ||
-                    r.type === 'sibling')) ||
-                ((r.from === editingId || r.to === editingId) && r.type === 'spouse')
-              )
-          );
-        } else {
-          member.id = this.generateUniqueId();
-          this.members.push(member);
-        }
-
+        // Parent relationships
         parentItems.forEach((rel) => {
-          this.relationships.push({
+          const obj = {
             from: rel.id,
             to: member.id,
             type: 'parent',
             relationshipType: rel.type
-          });
+          };
+          this.relationships.push(obj);
+          newRelationships.push(obj); // We'll deduce from these
         });
+
+        // Spouse relationships
         spouseItems.forEach((rel) => {
-          this.relationships.push({
+          const obj = {
             from: member.id,
             to: rel.id,
             type: 'spouse',
             relationshipType: rel.type
-          });
+          };
+          this.relationships.push(obj);
         });
+
+        // Sibling relationships
         siblingItems.forEach((rel) => {
-          this.relationships.push({
+          const obj = {
             from: member.id,
             to: rel.id,
             type: 'sibling',
             relationshipType: rel.type
-          });
+          };
+          this.relationships.push(obj);
         });
+
+        // Child relationships (parent->child)
         childItems.forEach((rel) => {
-          this.relationships.push({
+          const obj = {
             from: member.id,
             to: rel.id,
             type: 'parent',
             relationshipType: rel.type
-          });
+          };
+          this.relationships.push(obj);
+          newRelationships.push(obj); // We'll deduce from these
         });
 
+        // Deduce extra relationships
+        this.deduceExtendedRelationships(newRelationships);
+
+        // Save & re-render
         this.saveData();
+        this.renderTree();
+
         const successAlert = document.getElementById('success-alert');
         successAlert.classList.remove('d-none');
         successAlert.textContent = editingId
@@ -974,7 +985,6 @@
         this.showPage('tree');
       },
 
-      // Update existing member
       updateMember: function (member) {
         const index = this.members.findIndex((m) => m.id === member.id);
         if (index !== -1) {
@@ -983,7 +993,90 @@
         }
       },
 
-      // Add relationship to the form
+      // >>> NEW FUNCTION: deduceExtendedRelationships <<<
+      // This auto-adds the other parent if there's a spouse, and siblings if the parent has other children
+      deduceExtendedRelationships: function(newRelationships) {
+        newRelationships.forEach(rel => {
+          if (rel.type === 'parent') {
+            // "rel.from" = parentId, "rel.to" = childId
+            const parentId = rel.from;
+            const childId = rel.to;
+            const parentMember = this.members.find(m => m.id === parentId);
+            const childMember = this.members.find(m => m.id === childId);
+            if (!parentMember || !childMember) return;
+
+            // 1) Check parent's spouses
+            const spouses = this.relationships
+              .filter(r =>
+                ((r.from === parentId && r.type === 'spouse') ||
+                 (r.to === parentId && r.type === 'spouse'))
+              )
+              .map(r => (r.from === parentId ? r.to : r.from))
+              .map(spouseId => this.members.find(m => m.id === spouseId))
+              .filter(Boolean);
+
+            spouses.forEach(sp => {
+              // Check if that spouse is "married" or "partner" (adjust if you want "divorced" or "separated" to count)
+              const spRel = this.relationships.find(r =>
+                ((r.from === parentId && r.to === sp.id) ||
+                 (r.from === sp.id && r.to === parentId)) &&
+                r.type === 'spouse'
+              );
+              if (!spRel) return;
+              const spType = spRel.relationshipType || 'married';
+              if (['married','partner'].includes(spType)) {
+                // Add a parent link from spouse to child if not already
+                const alreadyParent = this.relationships.some(r =>
+                  r.from === sp.id && r.to === childId && r.type === 'parent'
+                );
+                if (!alreadyParent) {
+                  this.relationships.push({
+                    from: sp.id,
+                    to: childId,
+                    type: 'parent',
+                    relationshipType: rel.relationshipType // e.g. 'biological'
+                  });
+                }
+              }
+            });
+
+            // 2) Mark parent's other children as siblings
+            const parentChildrenIds = this.relationships
+              .filter(r => r.from === parentId && r.type === 'parent')
+              .map(r => r.to);
+
+            // Also spouse's children
+            spouses.forEach(sp => {
+              const spChildren = this.relationships
+                .filter(r => r.from === sp.id && r.type === 'parent')
+                .map(r => r.to);
+              spChildren.forEach(cid => {
+                if (!parentChildrenIds.includes(cid)) {
+                  parentChildrenIds.push(cid);
+                }
+              });
+            });
+
+            parentChildrenIds.forEach(siblingId => {
+              if (siblingId === childId) return;
+              const alreadySibling = this.relationships.some(r =>
+                ((r.from === childId && r.to === siblingId) ||
+                 (r.from === siblingId && r.to === childId)) &&
+                r.type === 'sibling'
+              );
+              if (!alreadySibling) {
+                this.relationships.push({
+                  from: childId,
+                  to: siblingId,
+                  type: 'sibling',
+                  relationshipType: 'full'
+                });
+              }
+            });
+          }
+        });
+      },
+
       addRelationshipToForm: function (type, person, relationshipType) {
         let listElement;
         switch (type) {
@@ -1030,7 +1123,6 @@
         });
       },
 
-      // Populate relationship selects
       populateMemberSelectors: function () {
         const selectors = {
           parent: document.getElementById('parentSelect'),
@@ -1052,7 +1144,6 @@
         });
       },
 
-      // Populate form for editing
       populateFormForEdit: function (member) {
         document.getElementById('firstName').value = member.firstName || '';
         document.getElementById('middleName').value = member.middleName || '';
@@ -1147,7 +1238,6 @@
         document.getElementById('save-button').dataset.editing = member.id;
       },
 
-      // Show profile
       showProfile: function (member) {
         this.currentMember = member;
         const container = document.getElementById('profile-container');
@@ -1346,7 +1436,6 @@
         this.showPage('profile');
       },
 
-      // Relationship helpers
       getRelationshipType: function (baseType, fromId, toId) {
         const relationship = this.relationships.find(
           (r) =>
@@ -1408,27 +1497,20 @@
           .filter(Boolean);
       },
 
-      // Let user select a node (the small circle)
       toggleSelection: function (personId, circleElement) {
         const index = this.selectedNodes.indexOf(personId);
         if (index === -1) {
-          // Not selected yet
           if (this.selectedNodes.length >= 2) {
-            // If 2 are already selected, remove the first
-            const removed = this.selectedNodes.shift();
-            // Also revert that circle's color if needed
-            // We'll find that circle in the DOM if we wanted, but for simplicity let's skip
+            this.selectedNodes.shift();
           }
           this.selectedNodes.push(personId);
           circleElement.attr('fill', 'yellow');
         } else {
-          // Already selected, so unselect
           this.selectedNodes.splice(index, 1);
           circleElement.attr('fill', 'white');
         }
       },
 
-      // Relationship logic for the two selected nodes
       computeRelationship: function (person1Id, person2Id) {
         const person1 = this.members.find((m) => m.id === person1Id);
         const person2 = this.members.find((m) => m.id === person2Id);
@@ -1436,23 +1518,18 @@
           return 'Error finding selected people';
         }
 
-        // 1) Check direct relationships
         const directRel = this.getDirectRelationship(person1Id, person2Id);
         if (directRel) {
           return `${this.getDisplayName(person1)} is ${directRel} of ${this.getDisplayName(
             person2
           )}`;
         }
-
-        // 2) Siblings?
         if (this.areSiblings(person1Id, person2Id)) {
           const siblingType = this.getSiblingType(person1Id, person2Id) || '';
           return `${this.getDisplayName(person1)} is ${siblingType} sibling of ${this.getDisplayName(
             person2
           )}`;
         }
-
-        // 3) Grandparent?
         if (this.isGrandparent(person1Id, person2Id)) {
           return `${this.getDisplayName(person1)} is a grandparent of ${this.getDisplayName(
             person2
@@ -1463,19 +1540,14 @@
             person1
           )}`;
         }
-
-        // 4) Cousins?
         const cousinResult = this.findCousinRelationship(person1Id, person2Id);
         if (cousinResult) {
           return cousinResult;
         }
-
-        // 5) In-law?
         const inLaw = this.findInLawRelationship(person1Id, person2Id);
         if (inLaw) {
           return inLaw;
         }
-
         return `No clear family relationship found between ${this.getDisplayName(
           person1
         )} and ${this.getDisplayName(person2)}`;
@@ -1603,7 +1675,6 @@
         return null;
       },
 
-      // Utility
       getDisplayName: function (member) {
         if (!member) return 'Unnamed';
         let name = member.firstName || '';
@@ -1620,7 +1691,6 @@
         );
       },
 
-      // Render the tree
       renderTree: function (forceReorganize = false) {
         const container = document.getElementById('tree-container');
         container.innerHTML = '';
@@ -1645,7 +1715,7 @@
         const boxWidth = 120;
         const boxHeight = 40;
         const levelHeight = 120;
-        const siblingDistance = 40;
+        const siblingDistance = 60; /* Increased to reduce overlap */
 
         const svg = d3
           .select(container)
@@ -1891,13 +1961,11 @@
             const lineEndY = unit.children[0].y - 20;
             let centerX = unit.x;
 
-            // vertical line from parents to children top
             svg
               .append('path')
               .attr('class', 'tree-link')
               .attr('d', `M${centerX},${lineStartY} V${lineEndY}`);
 
-            // horizontal line if multiple children
             if (unit.children.length > 1) {
               const leftMostChild = unit.children[0];
               const rightMostChild = unit.children[unit.children.length - 1];
@@ -1907,7 +1975,6 @@
                 .attr('d', `M${leftMostChild.x},${lineEndY} H${rightMostChild.x}`);
             }
 
-            // lines down to each child
             unit.children.forEach((child) => {
               svg
                 .append('path')
@@ -1962,7 +2029,6 @@
           .attr('transform', `translate(${x},${y})`)
           .attr('data-id', person.id);
 
-        // shape
         if (person.gender === 'male') {
           nodeGroup
             .append('rect')
@@ -2017,7 +2083,6 @@
             .attr('fill-opacity', 0.8);
         }
 
-        // photo
         if (person.photo) {
           const clipId = `clip-${person.id}`;
           const defs = group.append('defs');
@@ -2060,7 +2125,6 @@
             .attr('xlink:href', person.photo);
         }
 
-        // name text
         nodeGroup
           .append('text')
           .attr('x', width / 2)
@@ -2071,7 +2135,6 @@
           .attr('font-size', '14px')
           .text(this.getShortName(person));
 
-        // date text
         if (person.birthMonth || person.birthDay || person.birthYear) {
           let dateText = this.formatDateString(
             person.birthMonth,
@@ -2111,8 +2174,7 @@
             this.toggleSelection(person.id, selectCircle);
           });
 
-        // open profile if user clicks anywhere on the shape (but not the circle or X)
-        // We'll put a transparent rect on top to capture clicks
+        // transparent rect for clicking to open profile
         nodeGroup
           .append('rect')
           .attr('width', width)
@@ -2120,13 +2182,11 @@
           .attr('fill', 'transparent')
           .style('cursor', 'pointer')
           .on('click', (event) => {
-            // only open if not the circle or the delete X
-            // event.stopPropagation(); // We can handle if needed
             this.showProfile(person);
           });
 
-        // delete button (an X) top-right
-        const deleteBtn = nodeGroup
+        // delete X (top-right)
+        nodeGroup
           .append('text')
           .attr('class', 'delete-button')
           .attr('x', width - 10)
@@ -2145,7 +2205,6 @@
           });
       },
 
-      // Utility for date
       formatDateString: function (month, day, year) {
         let parts = [];
         if (month) {
@@ -2170,7 +2229,6 @@
         return parts.join(' ');
       },
 
-      // Delete
       deleteMember: function (memberId) {
         const index = this.members.findIndex((m) => m.id === memberId);
         if (index === -1) return;
@@ -2188,7 +2246,6 @@
         return member.firstName || member.lastName || 'Unnamed';
       },
 
-      // Center
       centerTree: function () {
         const svg = d3.select('#tree-container svg');
         const container = document.getElementById('tree-container');
